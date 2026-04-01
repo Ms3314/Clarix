@@ -23,15 +23,17 @@ class ConnectionManager:
             self.rooms[room] = []
         self.rooms[room].append(websocket)
         
-    def store_message(self,  message: str, room:str):
+    def store_message(self, room: str, message: str):
+        print("STORE FUNCTION CALLED:", room, message)
         if room not in self.messages:
             self.messages[room] = []
         self.messages[room].append(message)
+        print("UPDATED MESSAGES:", self.messages)
         
-
     def disconnect(self, websocket: WebSocket, room: str):
         if room in self.rooms:
-            self.rooms[room].remove(websocket)
+            if websocket in self.rooms[room]:
+                self.rooms[room].remove(websocket)
             if not self.rooms[room]:
                 del self.rooms[room]
 
@@ -39,9 +41,11 @@ class ConnectionManager:
         await websocket.send_text(message)
 
     async def broadcast(self, message: str, room: str):
-        for connection in self.rooms.get(room, []):
-            await connection.send_text(message)
-
+        for connection in list(self.rooms.get(room, [])):  # copy list
+            try:
+                await connection.send_text(message)
+            except:
+                self.rooms[room].remove(connection)  # remove dead connection
 
 manager = ConnectionManager()
 
@@ -52,29 +56,31 @@ async def chat(request: Request):
     return templates.TemplateResponse("Chat.html", {"request": request})
 
 
-# ✅ WebSocket endpoint (FIXED)
 @app.websocket("/ws/{room}/{username}")
 async def websocket_endpoint(websocket: WebSocket, room: str, username: str):
     await manager.connect(websocket, room)
-    
+
+    # ✅ Send old messages FIRST
+    if room in manager.messages:
+        for msg in manager.messages[room]:
+            await manager.send_personal_message(msg, websocket)
 
     try:
-
-        # Notify room user joined
+        # ✅ Then notify join
         await manager.broadcast(f"🔵 {username} joined the room", room)
 
         while True:
             data = await websocket.receive_text()
+
+            # ✅ Store message
             manager.store_message(room, f"💬 {username}: {data}")
 
-            # Send back to sender
-
-
-            # Broadcast to room
-            await manager.broadcast(
-                f"💬 {username}: {data}", room
-            )
+            # ✅ Broadcast message
+            await manager.broadcast(f"💬 {username}: {data}", room)
 
     except WebSocketDisconnect:
+        # ✅ Remove first
         manager.disconnect(websocket, room)
+
+        # ✅ Then notify others
         await manager.broadcast(f"🔴 {username} left the room", room)
