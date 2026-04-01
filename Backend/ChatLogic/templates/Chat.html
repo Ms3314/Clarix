@@ -1,41 +1,85 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <title>Websocket Demo</title>
-           <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+<head>
+    <title>Group Chat</title>
+    <style>
+        body {
+            font-family: Arial;
+            text-align: center;
+        }
 
-    </head>
-    <body>
-    <div class="container mt-3">
-        <h1>FastAPI WebSocket Chat</h1>
-        <h2>Your ID: <span id="ws-id"></span></h2>
-        <form action="" onsubmit="sendMessage(event)">
-            <input type="text" class="form-control" id="messageText" autocomplete="off"/>
-            <button class="btn btn-outline-primary mt-2">Send</button>
-        </form>
-        <ul id='messages' class="mt-5">
-        </ul>
-        
-    </div>
-    
-        <script>
-            var client_id = Date.now()
-            document.querySelector("#ws-id").textContent = client_id;
-            var ws = new WebSocket(`ws://localhost:8000/ws/${client_id}`);
-            ws.onmessage = function(event) {
-                var messages = document.getElementById('messages')
-                var message = document.createElement('li')
-                var content = document.createTextNode(event.data)
-                message.appendChild(content)
-                messages.appendChild(message)
-            };
-            function sendMessage(event) {
-                var input = document.getElementById("messageText")
-                ws.send(input.value)
-                input.value = ''
-                event.preventDefault()
-            }
-        </script>
-    </body>
+        #chatBox {
+            width: 60%;
+            height: 300px;
+            border: 1px solid #ccc;
+            margin: 20px auto;
+            overflow-y: scroll;
+            padding: 10px;
+            text-align: left;
+        }
+
+        input, button {
+            padding: 10px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<h2>🔥 Group Chat</h2>
+
+<!-- JOIN SECTION -->
+<div id="joinSection">
+    <input id="username" placeholder="Enter username" />
+    <input id="room" placeholder="Enter room name" />
+    <button onclick="joinChat()">Join Chat</button>
+</div>
+
+<!-- CHAT SECTION -->
+<div id="chatSection" style="display:none;">
+    <div id="chatBox"></div>
+
+    <input id="messageInput" placeholder="Type a message..." />
+    <button onclick="sendMessage()">Send</button>
+</div>
+
+<script>
+    let ws;
+
+    function joinChat() {
+        const username = document.getElementById("username").value || "guest";
+        const room = document.getElementById("room").value || "general";
+
+        ws = new WebSocket(`ws://localhost:8000/ws/${room}/${username}`);
+
+        ws.onopen = () => {
+            document.getElementById("joinSection").style.display = "none";
+            document.getElementById("chatSection").style.display = "block";
+        };
+
+        ws.onmessage = (event) => {
+            const chatBox = document.getElementById("chatBox");
+            const message = document.createElement("div");
+            message.textContent = event.data;
+            chatBox.appendChild(message);
+
+            chatBox.scrollTop = chatBox.scrollHeight;
+        };
+
+        ws.onclose = () => {
+            alert("Disconnected from server");
+        };
+    }
+
+    function sendMessage() {
+        const input = document.getElementById("messageInput");
+
+        if (input.value.trim() !== "") {
+            ws.send(input.value);
+            input.value = "";
+        }
+    }
+</script>
+
+</body>
 </html>

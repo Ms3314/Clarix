@@ -1,47 +1,80 @@
-from fastapi import FastAPI, WebSocket, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.templating import Jinja2Templates
+from pathlib import Path
 
 app = FastAPI()
 
-templates = Jinja2Templates(directory="templates")
+# ✅ Fix template path (IMPORTANT)
+BASE_DIR = Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+# ✅ Connection Manager with ROOM support
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: list[WebSocket] = []
+        self.rooms: dict[str, list[WebSocket]] = {}
+        self.messages: dict[str, list[str]] = {}
 
-    async def connect(self, websocket: WebSocket):
+
+
+    async def connect(self, websocket: WebSocket, room: str):
         await websocket.accept()
-        self.active_connections.append(websocket)
+        if room not in self.rooms:
+            self.rooms[room] = []
+        self.rooms[room].append(websocket)
+        
+    def store_message(self,  message: str, room:str):
+        if room not in self.messages:
+            self.messages[room] = []
+        self.messages[room].append(message)
+        
 
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+    def disconnect(self, websocket: WebSocket, room: str):
+        if room in self.rooms:
+            self.rooms[room].remove(websocket)
+            if not self.rooms[room]:
+                del self.rooms[room]
 
-    async def send_message(self, message: str):
-        for connection in self.active_connections:
-            await connection.send_text(message)
-    
     async def send_personal_message(self, message: str, websocket: WebSocket):
         await websocket.send_text(message)
-    
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
+
+    async def broadcast(self, message: str, room: str):
+        for connection in self.rooms.get(room, []):
             await connection.send_text(message)
+
 
 manager = ConnectionManager()
 
+
+# ✅ Route to load chat page
 @app.get("/chat")
 async def chat(request: Request):
     return templates.TemplateResponse("Chat.html", {"request": request})
 
-@app.websocket("/ws/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: str):
-    await manager.connect(websocket)
+
+# ✅ WebSocket endpoint (FIXED)
+@app.websocket("/ws/{room}/{username}")
+async def websocket_endpoint(websocket: WebSocket, room: str, username: str):
+    await manager.connect(websocket, room)
+    
+
     try:
+
+        # Notify room user joined
+        await manager.broadcast(f"🔵 {username} joined the room", room)
+
         while True:
             data = await websocket.receive_text()
-            await manager.send_personal_message(f"You wrote: {data}", websocket)
-            await manager.broadcast(f"Client {client_id} says: {data}")
-    except WebSocket.Disconnect:
-        manager.disconnect(websocket)
-        await manager.broadcast(f"Client {client_id} left the chat")
+            manager.store_message(room, f"💬 {username}: {data}")
 
+            # Send back to sender
+
+
+            # Broadcast to room
+            await manager.broadcast(
+                f"💬 {username}: {data}", room
+            )
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, room)
+        await manager.broadcast(f"🔴 {username} left the room", room)
