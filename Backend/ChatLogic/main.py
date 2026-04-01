@@ -54,7 +54,9 @@ manager = ConnectionManager()
 @app.get("/chat")
 async def chat(request: Request):
     return templates.TemplateResponse("Chat.html", {"request": request})
-
+@app.get("/dash")
+async def dash(request: Request):
+    return templates.TemplateResponse("Dashboard.html", {"request": request})
 
 @app.websocket("/ws/{room}/{username}")
 async def websocket_endpoint(websocket: WebSocket, room: str, username: str):
