@@ -1,6 +1,10 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, status, Depends, HTTPException
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
+from Backend import models, auth
+from Backend.Database import engine, SessionLocal
+from typing import Annotated
+from sqlalchemy.orm import Session
 
 app = FastAPI()
 
@@ -51,6 +55,10 @@ manager = ConnectionManager()
 
 
 # ✅ Route to load chat page
+@app.get("/")
+async def login_page(request: Request):
+    return templates.TemplateResponse("Login.html", {"request": request})
+
 @app.get("/chat")
 async def chat(request: Request):
     return templates.TemplateResponse("Chat.html", {"request": request})
@@ -91,15 +99,6 @@ async def websocket_endpoint(websocket: WebSocket, room: str, username: str):
 
 
 #this is the Authentication router part where i (kaashif) will be workin on student login and registration
-
-from fastapi import FastAPI, status, Depends, HTTPException
-import models
-from database import engine, SessionLocal
-from typing import Annotated
-from sqlalchemy.orm import Session
-import auth
-import models
-app = FastAPI()
 
 app.include_router(auth.router)
 

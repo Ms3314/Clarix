@@ -1,0 +1,18 @@
+# Standard Python gitignore patterns
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.db
+*.sqlite3
+.vscode/
+.idea/
+node_modules/
+dist/
+build/

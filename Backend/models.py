@@ -1,4 +1,4 @@
-from database import Base
+from Backend.Database import Base
 from sqlalchemy import Column, Integer, String
 
 class Users(Base):

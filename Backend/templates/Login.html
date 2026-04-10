@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Clarix · Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,700;0,900;1,700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #0a0a0a;
+  --bg-card: #141414;
+  --bg-input: #0f0f0f;
+  --bg-hover: #1e1e1e;
+  --border: rgba(255,255,255,0.07);
+  --border-focus: rgba(255,255,255,0.28);
+  --text-primary: #f0f0f0;
+  --text-secondary: #888;
+  --text-muted: #444;
+  --accent: #ffffff;
+  --accent-dim: #cccccc;
+  --error: rgba(220, 80, 80, 0.9);
+  --error-bg: rgba(220, 60, 60, 0.07);
+  --error-border: rgba(220, 60, 60, 0.25);
+  --success: rgba(100, 200, 140, 0.9);
+  --success-bg: rgba(60, 180, 100, 0.07);
+  --success-border: rgba(60, 180, 100, 0.25);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Instrument Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+}
+
+/* ─── LEFT PANEL ─── */
+.left-panel {
+  position: relative;
+  background: #0d0d0d;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 48px;
+  overflow: hidden;
+}
+
+.left-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 60% at 20% 10%, rgba(255,255,255,0.025) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 70% at 80% 90%, rgba(255,255,255,0.015) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.left-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+}
+
+.left-top { position: relative; z-index: 1; }
+
+.brand {
+  font-family: 'Fraunces', serif;
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+
+.left-content {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.tagline {
+  font-family: 'Fraunces', serif;
+  font-size: 3rem;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -1.5px;
+  color: #fff;
+  margin-bottom: 20px;
+}
+
+.tagline em {
+  font-style: italic;
+  color: rgba(255,255,255,0.4);
+}
+
+.tagline-sub {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 340px;
+}
+
+.feature-list {
+  margin-top: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.feature-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+  flex-shrink: 0;
+}
+
+.left-bottom {
+  position: relative;
+  z-index: 1;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ─── RIGHT PANEL ─── */
+.right-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  overflow-y: auto;
+}
+
+.auth-box {
+  width: 100%;
+  max-width: 420px;
+}
+
+/* ─── TABS ─── */
+.tab-row {
+  display: flex;
+  background: #111;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 4px;
+  gap: 4px;
+  margin-bottom: 32px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+  color: var(--text-muted);
+  background: none;
+  letter-spacing: 0.01em;
+}
+
+.tab-btn.active {
+  background: #ffffff;
+  color: #000000;
+  transform: scale(1.01);
+}
+
+/* ─── PANEL HEADER ─── */
+.panel-head { margin-bottom: 28px; }
+
+.panel-title {
+  font-family: 'Fraunces', serif;
+  font-size: 1.65rem;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  color: #fff;
+  margin-bottom: 5px;
+}
+
+.panel-sub {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+/* ─── FORM ─── */
+.form-panel { display: none; flex-direction: column; gap: 16px; }
+.form-panel.active { display: flex; animation: slideUp 0.3s ease; }
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+
+.field-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.field-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: var(--text-primary);
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+}
+
+.field-input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.04);
+}
+
+.field-input::placeholder { color: var(--text-muted); }
+
+/* password visibility toggle */
+.field-wrap { position: relative; }
+.field-wrap .field-input { padding-right: 44px; }
+.eye-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 4px;
+  transition: color 0.2s;
+}
+.eye-btn:hover { color: var(--text-secondary); }
+
+/* strength bar */
+.strength-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.strength-seg {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.07);
+  transition: background 0.3s;
+}
+
+.strength-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ─── ALERT ─── */
+.alert {
+  display: none;
+  font-size: 0.8rem;
+  padding: 11px 14px;
+  border-radius: 9px;
+  line-height: 1.5;
+}
+
+.alert.error {
+  display: flex;
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  color: var(--error);
+}
+
+.alert.success {
+  display: flex;
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  color: var(--success);
+}
+
+/* ─── SUBMIT BTN ─── */
+.submit-btn {
+  width: 100%;
+  padding: 13px;
+  background: #ffffff;
+  color: #000000;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  letter-spacing: 0.01em;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #e8e8e8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(255,255,255,0.08);
+}
+
+.submit-btn:active:not(:disabled) { transform: translateY(0); }
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(0,0,0,0.2);
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  display: none;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── SWITCH LINK ─── */
+.switch-link {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+.switch-link a {
+  color: rgba(255,255,255,0.55);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.switch-link a:hover { color: #fff; }
+
+/* ─── DIVIDER ─── */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0;
+}
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.divider span { font-size: 0.7rem; color: var(--text-muted); }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 768px) {
+  body { grid-template-columns: 1fr; }
+  .left-panel { display: none; }
+  .right-panel { padding: 32px 24px; align-items: flex-start; padding-top: 48px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ─── LEFT ─── -->
+<div class="left-panel">
+  <div class="left-grid"></div>
+  <div class="left-top">
+    <div class="brand">Clarix.</div>
+  </div>
+  <div class="left-content">
+    <div class="tagline">Learn smarter,<br/><em>not harder.</em></div>
+    <div class="tagline-sub">Your AI-powered learning platform — quizzes, flashcards, podcasts and a tutor that never sleeps.</div>
+    <div class="feature-list">
+      <div class="feature-item"><div class="feature-dot"></div>AI Tutor available 24/7</div>
+      <div class="feature-item"><div class="feature-dot"></div>Teacher-assigned quizzes & flashcards</div>
+      <div class="feature-item"><div class="feature-dot"></div>Real-time group chat rooms</div>
+      <div class="feature-item"><div class="feature-dot"></div>Curated podcast library</div>
+    </div>
+  </div>
+  <div class="left-bottom">© 2025 Clarix. All rights reserved.</div>
+</div>
+
+<!-- ─── RIGHT ─── -->
+<div class="right-panel">
+  <div class="auth-box">
+
+    <div class="tab-row">
+      <button class="tab-btn active" id="tab-login" onclick="switchTab('login')">Sign in</button>
+      <button class="tab-btn" id="tab-register" onclick="switchTab('register')">Create account</button>
+    </div>
+
+    <!-- ─── LOGIN ─── -->
+    <div class="form-panel active" id="panel-login">
+      <div class="panel-head">
+        <div class="panel-title">Welcome back.</div>
+        <div class="panel-sub">Sign in to continue to Clarix</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Username</label>
+        <input class="field-input" type="text" id="login-user" placeholder="your username" autocomplete="username"/>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Password</label>
+        <div class="field-wrap">
+          <input class="field-input" type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()"/>
+          <button class="eye-btn" onclick="toggleVis('login-pass', this)" tabindex="-1">👁</button>
+        </div>
+      </div>
+
+      <div class="alert" id="login-alert"></div>
+
+      <button class="submit-btn" id="login-btn" onclick="doLogin()">
+        <div class="spinner" id="login-spin"></div>
+        <span id="login-btn-text">Sign in →</span>
+      </button>
+
+      <div class="switch-link">
+        Don't have an account? <a href="#" onclick="switchTab('register'); return false;">Create one</a>
+      </div>
+    </div>
+
+    <!-- ─── REGISTER ─── -->
+    <div class="form-panel" id="panel-register">
+      <div class="panel-head">
+        <div class="panel-title">Join Clarix.</div>
+        <div class="panel-sub">Create your student account</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Username</label>
+        <input class="field-input" type="text" id="reg-user" placeholder="choose a username" autocomplete="username"/>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Password</label>
+        <div class="field-wrap">
+          <input class="field-input" type="password" id="reg-pass" placeholder="••••••••" autocomplete="new-password" oninput="checkStrength(this.value)"/>
+          <button class="eye-btn" onclick="toggleVis('reg-pass', this)" tabindex="-1">👁</button>
+        </div>
+        <div class="strength-row">
+          <div class="strength-seg" id="seg1"></div>
+          <div class="strength-seg" id="seg2"></div>
+          <div class="strength-seg" id="seg3"></div>
+          <div class="strength-seg" id="seg4"></div>
+        </div>
+        <div class="strength-label" id="strength-label">—</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Confirm password</label>
+        <div class="field-wrap">
+          <input class="field-input" type="password" id="reg-confirm" placeholder="••••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter') doRegister()"/>
+          <button class="eye-btn" onclick="toggleVis('reg-confirm', this)" tabindex="-1">👁</button>
+        </div>
+      </div>
+
+      <div class="alert" id="reg-alert"></div>
+
+      <button class="submit-btn" id="reg-btn" onclick="doRegister()">
+        <div class="spinner" id="reg-spin"></div>
+        <span id="reg-btn-text">Create account →</span>
+      </button>
+
+      <div class="switch-link">
+        Already have an account? <a href="#" onclick="switchTab('login'); return false;">Sign in</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  /* ─── TAB SWITCH ─── */
+  function switchTab(t) {
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.form-panel').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + t).classList.add('active');
+    document.getElementById('panel-' + t).classList.add('active');
+    clearAlert('login-alert');
+    clearAlert('reg-alert');
+  }
+
+  /* ─── ALERTS ─── */
+  function showAlert(id, msg, type) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = 'alert ' + type;
+  }
+
+  function clearAlert(id) {
+    const el = document.getElementById(id);
+    el.className = 'alert';
+    el.textContent = '';
+  }
+
+  /* ─── PASSWORD VISIBILITY ─── */
+  function toggleVis(inputId, btn) {
+    const input = document.getElementById(inputId);
+    input.type = input.type === 'password' ? 'text' : 'password';
+    btn.style.opacity = input.type === 'text' ? '0.7' : '0.35';
+  }
+
+  /* ─── PASSWORD STRENGTH ─── */
+  function checkStrength(val) {
+    const segs = [document.getElementById('seg1'), document.getElementById('seg2'), document.getElementById('seg3'), document.getElementById('seg4')];
+    const label = document.getElementById('strength-label');
+    if (!val) { segs.forEach(s => s.style.background = ''); label.textContent = '—'; return; }
+    let score = 0;
+    if (val.length >= 8) score++;
+    if (/[A-Z]/.test(val)) score++;
+    if (/[0-9]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+    const colors = ['#cc4444', '#cc8844', '#aaaa44', '#55aa77'];
+    const labels = ['Weak', 'Fair', 'Good', 'Strong'];
+    segs.forEach((s, i) => {
+      s.style.background = i < score ? colors[score - 1] : 'rgba(255,255,255,0.07)';
+    });
+    label.textContent = labels[score - 1] || '—';
+    label.style.color = colors[score - 1] || 'var(--text-muted)';
+  }
+
+  /* ─── LOADING STATE ─── */
+  function setLoading(btnId, spinId, textId, loading, label) {
+    const btn = document.getElementById(btnId);
+    const spin = document.getElementById(spinId);
+    const text = document.getElementById(textId);
+    btn.disabled = loading;
+    spin.style.display = loading ? 'block' : 'none';
+    if (label) text.textContent = label;
+  }
+
+  /* ─── LOGIN ─── */
+  async function doLogin() {
+    const user = document.getElementById('login-user').value.trim();
+    const pass = document.getElementById('login-pass').value;
+    clearAlert('login-alert');
+
+    if (!user || !pass) {
+      showAlert('login-alert', 'Please fill in both fields.', 'error');
+      return;
+    }
+
+    setLoading('login-btn', 'login-spin', 'login-btn-text', true, 'Signing in…');
+
+    try {
+      const form = new URLSearchParams();
+      form.append('username', user);
+      form.append('password', pass);
+
+      const res = await fetch('/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: form
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem('clarix_token', data.access_token);
+        localStorage.setItem('clarix_user', user);
+        showAlert('login-alert', 'Signed in successfully! Redirecting…', 'success');
+        setTimeout(() => { window.location.href = '/dash'; }, 900);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showAlert('login-alert', err.detail || 'Invalid username or password.', 'error');
+        setLoading('login-btn', 'login-spin', 'login-btn-text', false, 'Sign in →');
+      }
+    } catch (e) {
+      showAlert('login-alert', 'Could not connect to server. Is it running?', 'error');
+      setLoading('login-btn', 'login-spin', 'login-btn-text', false, 'Sign in →');
+    }
+  }
+
+  /* ─── REGISTER ─── */
+  async function doRegister() {
+    const user = document.getElementById('reg-user').value.trim();
+    const pass = document.getElementById('reg-pass').value;
+    const confirm = document.getElementById('reg-confirm').value;
+    clearAlert('reg-alert');
+
+    if (!user || !pass || !confirm) {
+      showAlert('reg-alert', 'Please fill in all fields.', 'error');
+      return;
+    }
+    if (user.length < 3) {
+      showAlert('reg-alert', 'Username must be at least 3 characters.', 'error');
+      return;
+    }
+    if (pass.length < 6) {
+      showAlert('reg-alert', 'Password must be at least 6 characters.', 'error');
+      return;
+    }
+    if (pass !== confirm) {
+      showAlert('reg-alert', 'Passwords do not match.', 'error');
+      return;
+    }
+
+    setLoading('reg-btn', 'reg-spin', 'reg-btn-text', true, 'Creating account…');
+
+    try {
+      const res = await fetch('/auth/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, password: pass })
+      });
+
+      if (res.ok) {
+        showAlert('reg-alert', 'Account created! Signing you in…', 'success');
+        setTimeout(async () => {
+          document.getElementById('login-user').value = user;
+          document.getElementById('login-pass').value = pass;
+          switchTab('login');
+          await doLogin();
+        }, 800);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showAlert('reg-alert', err.detail || 'Registration failed. Username may already exist.', 'error');
+        setLoading('reg-btn', 'reg-spin', 'reg-btn-text', false, 'Create account →');
+      }
+    } catch (e) {
+      showAlert('reg-alert', 'Could not connect to server. Is it running?', 'error');
+      setLoading('reg-btn', 'reg-spin', 'reg-btn-text', false, 'Create account →');
+    }
+  }
+</script>
+</body>
+</html>
