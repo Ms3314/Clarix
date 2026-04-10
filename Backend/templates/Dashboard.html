@@ -414,7 +414,8 @@ nav {
   </div>
   <div class="nav-right">
     <span class="nav-greeting">Good morning,</span>
-    <div class="nav-avatar">K</div>
+    <div class="nav-avatar">{{ user.username[0].upper() }}</div>
+    <a class="nav-item" href="/logout" style="color: #ff4d4d;"><span class="icon">⎋</span> Logout</a>
   </div>
 </nav>
 
@@ -424,7 +425,7 @@ nav {
   <div id="panel-home" class="panel active">
     <div class="section-header">
       <div class="section-tag">Students Panel</div>
-      <div class="section-title">Welcome back, Kaashif.</div>
+      <div class="section-title">Welcome back, {{ user.username }}.</div>
     </div>
     <div class="home-grid" style="padding: 0 40px 40px;">
       <div class="stat-card">

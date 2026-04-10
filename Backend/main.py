@@ -1,4 +1,5 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, status, Depends, HTTPException
+from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from Backend import models, auth
@@ -59,13 +60,27 @@ manager = ConnectionManager()
 async def login_page(request: Request):
     return templates.TemplateResponse("Login.html", {"request": request})
 
+@app.get("/logout")
+async def logout():
+    response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+    response.delete_cookie("clarix_token")
+    return response
+
 @app.get("/chat")
 async def chat(request: Request):
-    return templates.TemplateResponse("Chat.html", {"request": request})
+    try:
+        user = await auth.get_current_user(request, SessionLocal())
+        return templates.TemplateResponse("Chat.html", {"request": request, "user": user})
+    except HTTPException:
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
 
 @app.get("/dash")
 async def dash(request: Request):
-    return templates.TemplateResponse("Dashboard.html", {"request": request})
+    try:
+        user = await auth.get_current_user(request, SessionLocal())
+        return templates.TemplateResponse("Dashboard.html", {"request": request, "user": user})
+    except HTTPException:
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
 
 @app.websocket("/ws/{room}/{username}")
 async def websocket_endpoint(websocket: WebSocket, room: str, username: str):

@@ -553,9 +553,9 @@
     <div class="join-card">
         <h2>Connect to a room</h2>
         <div class="field-group">
-            <label>Your Name</label>
-            <input id="usernameInput" type="text" placeholder="e.g. Alex" autocomplete="off"/>
-        </div>
+                    <label>Your Name</label>
+                    <input id="usernameInput" type="text" value="{{ user.username }}" readonly style="background: var(--bg-hover); cursor: not-allowed;"/>
+                </div>
         <div class="field-group">
             <label>Room Name</label>
             <input id="roomInput" type="text" placeholder="e.g. general — press Enter to join" autocomplete="off" oninput="autoJoinIfReady()"/>
