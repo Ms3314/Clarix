@@ -52,6 +52,7 @@
 
         /* ─── JOIN SCREEN ─── */
         #joinScreen {
+            display: none; /* Hidden by default for direct entry */
             position: relative;
             z-index: 10;
             display: flex;
@@ -548,22 +549,6 @@
 </head>
 <body>
 
-<!-- ─── JOIN SCREEN ─── -->
-<div id="joinScreen">
-    <div class="join-card">
-        <h2>Connect to a room</h2>
-        <div class="field-group">
-                    <label>Your Name</label>
-                    <input id="usernameInput" type="text" value="{{ user.username }}" readonly style="background: var(--bg-hover); cursor: not-allowed;"/>
-                </div>
-        <div class="field-group">
-            <label>Room Name</label>
-            <input id="roomInput" type="text" placeholder="e.g. general — press Enter to join" autocomplete="off" oninput="autoJoinIfReady()"/>
-        </div>
-        <button class="join-btn" onclick="joinInitial()">Join Room →</button>
-    </div>
-</div>
-
 <!-- ─── APP SCREEN ─── -->
 <div id="appScreen">
 
@@ -576,11 +561,12 @@
             </div>
         </div>
 
-        <div class="sidebar-section-label">Rooms</div>
+        <div class="sidebar-section-label">Your Classes</div>
 
         <div id="roomList"></div>
 
-        <div class="sidebar-join">
+        <!-- Hidden for students: Teachers handle group assignments -->
+        <div class="sidebar-join" style="display: none;">
             <div class="sidebar-join-row">
                 <input id="newRoomInput" type="text" placeholder="Join another room…" autocomplete="off"/>
                 <button class="sidebar-join-btn" onclick="joinNewRoom()">+ Join</button>
@@ -600,8 +586,9 @@
         </div>
 
         <div id="emptyState">
-            <div class="empty-icon">💬</div>
-            <div class="empty-text">Select a room to start chatting</div>
+            <div class="empty-icon">📂</div>
+            <div class="empty-text">No active class groups found</div>
+            <div class="empty-sub" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">Your teacher will add you to class groups soon.</div>
         </div>
 
         <div id="messagesWrap"></div>
@@ -627,6 +614,20 @@
     let rooms = {};       // roomName -> { ws, messages[] }
     let activeRoom = '';
 
+    /* ─── AUTO JOIN ─── */
+    window.onload = () => {
+        const u = "{{ user.username }}";
+        const defaultRoom = "General Chat"; // Everyone joins here first
+        
+        currentUser = u;
+        
+        document.getElementById('appScreen').classList.add('active');
+        document.getElementById('sidebarUsername').textContent = u;
+        document.getElementById('sidebarAvatar').textContent = initials(u);
+
+        connectRoom(defaultRoom);
+    };
+
     /* ─── HELPERS ─── */
     function initials(name) {
         return name.slice(0, 2).toUpperCase();
@@ -634,29 +635,6 @@
 
     function formatTime(date) {
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-
-    /* ─── AUTO JOIN WHEN BOTH FIELDS FILLED ─── */
-    function autoJoinIfReady() {
-        const u = document.getElementById('usernameInput').value.trim();
-        const r = document.getElementById('roomInput').value.trim();
-        if (u && r) joinInitial();
-    }
-
-    /* ─── JOIN INITIAL ─── */
-    function joinInitial() {
-        const u = document.getElementById('usernameInput').value.trim();
-        const r = document.getElementById('roomInput').value.trim();
-        if (!u || !r) return;
-
-        currentUser = u;
-
-        document.getElementById('joinScreen').style.display = 'none';
-        document.getElementById('appScreen').classList.add('active');
-        document.getElementById('sidebarUsername').textContent = u;
-        document.getElementById('sidebarAvatar').textContent = initials(u);
-
-        connectRoom(r);
     }
 
     /* ─── JOIN ANOTHER ROOM ─── */
