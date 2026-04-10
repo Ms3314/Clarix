@@ -54,6 +54,7 @@ manager = ConnectionManager()
 @app.get("/chat")
 async def chat(request: Request):
     return templates.TemplateResponse("Chat.html", {"request": request})
+
 @app.get("/dash")
 async def dash(request: Request):
     return templates.TemplateResponse("Dashboard.html", {"request": request})
@@ -86,3 +87,29 @@ async def websocket_endpoint(websocket: WebSocket, room: str, username: str):
 
         # ✅ Then notify others
         await manager.broadcast(f"🔴 {username} left the room", room)
+
+
+
+#this is the Authentication router part where i (kaashif) will be workin on student login and registration
+
+from fastapi import FastAPI, status, Depends, HTTPException
+import models
+from database import engine, SessionLocal
+from typing import Annotated
+from sqlalchemy.orm import Session
+import auth
+import models
+app = FastAPI()
+
+app.include_router(auth.router)
+
+models.Base.metadata.create_all(bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+db_dependency = Annotated[Session, Depends(get_db)]
