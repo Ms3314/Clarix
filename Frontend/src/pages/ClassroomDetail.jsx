@@ -7,6 +7,18 @@ import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import ReactMarkdown from 'react-markdown'
 
+import { 
+  ClassroomNav, 
+  ClassroomHeader, 
+  ClassroomTabs,
+  OverviewTab,
+  StudentsTab,
+  ResourcesTab,
+  QuizzesTab,
+  FlashcardsTab
+} from '@/components/classroom'
+import ChatTab from '@/components/chat/ChatTab'
+
 const getErrorMessage = (error) => {
   if (!error.response) return error.message || 'Network error'
   const detail = error.response.data?.detail
@@ -232,27 +244,14 @@ const ClassroomDetail = () => {
 
         <div className="rounded-lg" style={{ background: '#111111', border: '1px solid #333333' }}>
           <div className="border-b" style={{ borderColor: '#333333' }}>
-            <nav className="flex -mb-px">
-              {['overview', 'students', 'resources', 'chat', 'quizzes', 'flashcards'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => {
-                    setActiveTab(tab)
-                    if (tab === 'chat') fetchChatHistory()
-                  }}
-                  className={`py-4 px-6 font-medium text-sm ${activeTab === tab
-                    ? 'border-b-2'
-                    : ''
-                    }`}
-                  style={activeTab === tab
-                    ? { borderColor: '#ffffff', color: '#ffffff' }
-                    : { color: '#666666' }
-                  }
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </button>
-              ))}
-            </nav>
+            <ClassroomTabs 
+              activeTab={activeTab} 
+              onTabChange={(tab) => {
+                setActiveTab(tab)
+                if (tab === 'chat') fetchChatHistory()
+              }}
+              user={user}
+            />
           </div>
 
           <div className="p-6">

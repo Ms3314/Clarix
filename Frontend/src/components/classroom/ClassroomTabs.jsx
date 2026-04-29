@@ -1,6 +1,4 @@
-const TABS = ['overview', 'students', 'resources', 'chat', 'quizzes', 'flashcards']
-
-export const ClassroomTabs = ({ activeTab, onTabChange, onChatTabClick }) => {
+export const ClassroomTabs = ({ activeTab, onTabChange, onChatTabClick, user }) => {
   const handleTabClick = (tab) => {
     onTabChange(tab)
     if (tab === 'chat' && onChatTabClick) {
@@ -8,10 +6,15 @@ export const ClassroomTabs = ({ activeTab, onTabChange, onChatTabClick }) => {
     }
   }
 
+  const allTabs = ['overview', 'students', 'resources', 'chat', 'quizzes', 'flashcards']
+  const visibleTabs = user?.role === 'teacher' 
+    ? allTabs 
+    : allTabs.filter(tab => tab !== 'students')
+
   return (
     <div className="border-b" style={{ borderColor: '#333333' }}>
       <nav className="flex -mb-px">
-        {TABS.map((tab) => (
+        {visibleTabs.map((tab) => (
           <button
             key={tab}
             onClick={() => handleTabClick(tab)}
