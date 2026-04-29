@@ -6,6 +6,16 @@ import api from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 
+const getErrorMessage = (error) => {
+  if (!error.response) return error.message || 'Network error'
+  const detail = error.response.data?.detail
+  if (Array.isArray(detail)) {
+    return detail.map(d => d.msg || d).join(', ')
+  }
+  if (typeof detail === 'object') return detail.msg || JSON.stringify(detail)
+  return detail || 'An error occurred'
+}
+
 const ClassroomDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -19,8 +29,9 @@ const ClassroomDetail = () => {
   const [flashcards, setFlashcards] = useState([])
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteLoading, setInviteLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
-  useEffect(() => { 
+  useEffect(() => {
     fetchData()
   }, [id])
 
@@ -41,7 +52,7 @@ const ClassroomDetail = () => {
         fetchFlashcards()
       }
     } catch (error) {
-      toast.error('Failed to load classroom')
+      toast.error(getErrorMessage(error))
       if (error.response?.status === 401) {
         navigate('/')
       }
@@ -55,7 +66,7 @@ const ClassroomDetail = () => {
       const res = await api.get(`/classrooms/${id}/students`)
       setStudents(res.data.students || [])
     } catch (error) {
-      console.error('Failed to fetch students')
+      console.error('Failed to fetch students:', getErrorMessage(error))
     }
   }
 
@@ -64,7 +75,7 @@ const ClassroomDetail = () => {
       const res = await api.get(`/classrooms/${id}/resources`)
       setResources(res.data.resources || [])
     } catch (error) {
-      console.error('Failed to fetch resources')
+      console.error('Failed to fetch resources:', getErrorMessage(error))
     }
   }
 
@@ -73,7 +84,7 @@ const ClassroomDetail = () => {
       const res = await api.get(`/classrooms/${id}/quizzes`)
       setQuizzes(res.data.quizzes || [])
     } catch (error) {
-      console.error('Failed to fetch quizzes')
+      console.error('Failed to fetch quizzes:', getErrorMessage(error))
     }
   }
 
@@ -82,7 +93,7 @@ const ClassroomDetail = () => {
       const res = await api.get(`/classrooms/${id}/flashcards`)
       setFlashcards(res.data.flashcards || [])
     } catch (error) {
-      console.error('Failed to fetch flashcards')
+      console.error('Failed to fetch flashcards:', getErrorMessage(error))
     }
   }
 
@@ -95,7 +106,7 @@ const ClassroomDetail = () => {
       setInviteEmail('')
       fetchStudents()
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to invite student')
+      toast.error(getErrorMessage(error))
     } finally {
       setInviteLoading(false)
     }
@@ -107,7 +118,7 @@ const ClassroomDetail = () => {
       toast.success('Resource deleted successfully!')
       fetchResources()
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to delete resource')
+      toast.error(getErrorMessage(error))
     }
   }
 
@@ -157,15 +168,14 @@ const ClassroomDetail = () => {
         <div className="bg-white rounded-lg shadow">
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px">
-            {['overview', 'students', 'resources', 'chat', 'quizzes', 'flashcards'].map((tab) => (
+              {['overview', 'students', 'resources', 'chat', 'quizzes', 'flashcards'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`py-4 px-6 font-medium text-sm ${
-                    activeTab === tab
-                      ? 'border-b-2 border-blue-500 text-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  className={`py-4 px-6 font-medium text-sm ${activeTab === tab
+                    ? 'border-b-2 border-blue-500 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                    }`}
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
@@ -270,48 +280,57 @@ const ClassroomDetail = () => {
                         id="resource-upload"
                         accept=".pdf"
                         className="hidden"
+                        disabled={uploading}
                         onChange={async (e) => {
                           const file = e.target.files[0]
                           if (!file) return
 
+                          setUploading(true)
                           try {
-                            toast.info('Generating upload URL...')
-                            
-                            const { data: urlData } = await api.post(
-                              `/classrooms/${id}/resources/generate-upload-url`,
-                              { filename: file.name, file_size: file.size }
-                            )
+                            // toast.info('Generating upload URL...')
+
+                            // const urlResponse = await api.post(
+                            //   `/classrooms/${id}/resources/generate-upload-url`,
+                            //   { filename: file.name, file_size: file.size }
+                            // )
+                            // console.log("urlResponse", urlResponse)
+                            // const urlData = urlResponse.data
 
                             toast.info('Uploading to Supabase...')
-                            
-                            const uploadResponse = await fetch(urlData.upload_url, {
-                              method: 'PUT',
-                              body: file,
-                              headers: {
-                                'Content-Type': 'application/pdf'
-                              }
-                            })
+                            const filePath = `public/${Date.now()}-${file.name}`;
 
-                            if (!uploadResponse.ok) throw new Error('Upload failed')
+
+                            const { error: uploadError } = await supabase.storage
+                              .from('resources')
+                              .upload(filePath, file, {
+                                contentType: 'application/pdf'
+                              });
+
+                            if (uploadError) throw uploadError
 
                             toast.info('Creating resource record...')
 
                             await api.post(`/classrooms/${id}/resources`, {
                               filename: file.name,
                               file_size: file.size,
-                              file_path: urlData.file_path
+                              file_path: file.name + "_" + file.size
                             })
 
                             toast.success('Resource uploaded and indexing started!')
                             fetchResources()
                           } catch (error) {
                             console.error('Upload error:', error)
-                            toast.error(error.response?.data?.detail || error.message || 'Failed to upload resource')
+                            toast.error(getErrorMessage(error))
+                          } finally {
+                            setUploading(false)
                           }
                         }}
                       />
-                      <Button onClick={() => document.getElementById('resource-upload').click()}>
-                        Upload Resource
+                      <Button
+                        onClick={() => document.getElementById('resource-upload').click()}
+                        disabled={uploading}
+                      >
+                        {uploading ? 'Uploading...' : 'Upload Resource'}
                       </Button>
                     </div>
                   )}

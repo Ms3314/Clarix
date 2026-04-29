@@ -8,23 +8,33 @@ from Backend.Database import SessionLocal
 from Backend.rag_service import index_resource_from_url, generate_rag_response
 import os
 from datetime import datetime
+from Backend.Database import get_db
 
 router = APIRouter(
     prefix="/classrooms",
     tags=["resources"]
 )
 
-db_dependency = Annotated[Session, Depends(SessionLocal)]
+db_dependency = Annotated[Session, Depends(get_db)]
 
 BUCKET_NAME = "resources"
 
+_supabase_client = None
+
 def get_supabase_client():
+    global _supabase_client
+    if _supabase_client is not None:
+        return _supabase_client
+    
     from supabase import create_client, Client
     url = os.getenv("SUPABASE_URL")
     key = os.getenv("SUPABASE_SERVICE_KEY")
-    if not url or not key:
-        raise HTTPException(status_code=500, detail="Supabase not configured")
-    return create_client(url, key)
+    
+    if not url or not key or url == "https://your-project.supabase.co":
+        return None
+    
+    _supabase_client = create_client(url, key)
+    return _supabase_client
 
 class ResourceResponse(BaseModel):
     id: int
@@ -66,8 +76,9 @@ async def generate_upload_url(
     classroom_id: int,
     request: UploadUrlRequest,
     teacher: Users = Depends(get_current_teacher),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
+    print("are u fine brooo????")
     classroom = db.query(Classroom).filter(
         Classroom.id == classroom_id,
         Classroom.teacher_id == teacher.id
@@ -78,29 +89,34 @@ async def generate_upload_url(
     if not request.filename.endswith('.pdf'):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF files are allowed")
 
+    supabase = get_supabase_client()
+    if not supabase:
+        raise HTTPException(
+            status_code=503, 
+            detail="Supabase storage not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_KEY in .env"
+        )
+
     try:
-        supabase = get_supabase_client()
         file_path = f"classrooms/{classroom_id}/{classroom_id}_{request.filename}"
         
-        presigned_data = supabase.storage.from_(BUCKET_NAME).create_signed_url(
-            file_path,
-            expires_in=3600,
-            options={"contentType": "application/pdf"}
-        )
+        # presigned_data = supabase.storage.from_(BUCKET_NAME).create_signed_url(
+        #     file_path,
+        #     expires_in=3600
+        # )
         
         return {
             "upload_url": presigned_data["signedURL"],
             "file_path": file_path
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate upload URL: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate upload URL {e}:  {str(e)}")
 
 @router.post("/{classroom_id}/resources")
 async def create_resource(
     classroom_id: int,
     request: CreateResourceRequest,
     teacher: Users = Depends(get_current_teacher),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
     classroom = db.query(Classroom).filter(
         Classroom.id == classroom_id,
@@ -141,7 +157,7 @@ async def create_resource(
 async def list_resources(
     classroom_id: int,
     user: Users = Depends(get_current_user),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
     classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
     if not classroom:
@@ -167,7 +183,7 @@ async def chat_with_resources(
     classroom_id: int,
     request: ChatRequest,
     user: Users = Depends(get_current_user),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
     classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
     if not classroom:
@@ -193,7 +209,7 @@ async def delete_resource(
     classroom_id: int,
     resource_id: int,
     teacher: Users = Depends(get_current_teacher),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
     classroom = db.query(Classroom).filter(
         Classroom.id == classroom_id,
