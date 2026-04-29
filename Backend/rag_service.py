@@ -117,6 +117,7 @@ def generate_rag_response(query: str, classroom_id: int):
             ("system", """You are a helpful teaching assistant for a classroom. Use the following context from the classroom's PDF resources to answer the user's question. 
 
 Be thorough but concise. If the answer cannot be found in the context provided, clearly state that the information is not available in the uploaded resources.
+, if you are asked any questions other than the classroom related questions then ignore and say that i can answer only the classroom related questions. and if the context is empty or not relevant to the question then say that i can answer only the classroom related questions.
 
 Context:
 {context}"""),
@@ -124,7 +125,7 @@ Context:
         ])
         
         llm = ChatOpenAI(
-            model="gpt-3.5-turbo",
+            model="gpt-5.4-nano",
             temperature=0.7,
             api_key=os.getenv("OPENAI_API_KEY")
         )
