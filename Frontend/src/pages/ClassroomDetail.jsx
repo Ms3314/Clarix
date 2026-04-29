@@ -30,6 +30,8 @@ const ClassroomDetail = () => {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteLoading, setInviteLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [editingResourceId, setEditingResourceId] = useState(null)
+  const [editingFilename, setEditingFilename] = useState('')
 
   useEffect(() => {
     fetchData()
@@ -116,6 +118,34 @@ const ClassroomDetail = () => {
     try {
       await api.delete(`/classrooms/${id}/resources/${resourceId}`)
       toast.success('Resource deleted successfully!')
+      fetchResources()
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
+  }
+
+  const startEditingFilename = (resource) => {
+    setEditingResourceId(resource.id)
+    setEditingFilename(resource.filename)
+  }
+
+  const cancelEditingFilename = () => {
+    setEditingResourceId(null)
+    setEditingFilename('')
+  }
+
+  const saveFilename = async (resourceId) => {
+    if (!editingFilename.trim()) {
+      toast.error('Filename cannot be empty')
+      return
+    }
+    try {
+      await api.put(`/classrooms/${id}/resources/${resourceId}`, {
+        filename: editingFilename.trim()
+      })
+      toast.success('Filename updated successfully!')
+      setEditingResourceId(null)
+      setEditingFilename('')
       fetchResources()
     } catch (error) {
       toast.error(getErrorMessage(error))
@@ -343,16 +373,60 @@ const ClassroomDetail = () => {
                       <Card key={resource.id}>
                         <CardContent className="pt-6">
                           <div className="flex justify-between items-center">
-                            <div>
-                              <p className="font-medium">{resource.filename}</p>
-                              <p className="text-sm text-gray-600">
-                                {resource.indexed ? 'Indexed' : 'Processing...'}
-                              </p>
+                            <div className="flex-1">
+                              {editingResourceId === resource.id ? (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={editingFilename}
+                                    onChange={(e) => setEditingFilename(e.target.value)}
+                                    className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') saveFilename(resource.id)
+                                      if (e.key === 'Escape') cancelEditingFilename()
+                                    }}
+                                  />
+                                  <Button size="sm" onClick={() => saveFilename(resource.id)}>
+                                    Save
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={cancelEditingFilename}>
+                                    Cancel
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div>
+                                  <a
+                                    href={resource.file_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                  >
+                                    {resource.filename}
+                                  </a>
+                                  <p className="text-sm text-gray-600">
+                                    {resource.indexed ? 'Indexed' : 'Processing...'}
+                                  </p>
+                                </div>
+                              )}
                             </div>
-                            {user?.role === 'teacher' && (
-                              <Button variant="destructive" size="sm" onClick={() => handleDeleteResource(resource.id)}>
-                                Delete
-                              </Button>
+                            {user?.role === 'teacher' && editingResourceId !== resource.id && (
+                              <div className="flex items-center gap-2 ml-4">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => startEditingFilename(resource)}
+                                >
+                                  Edit
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm" 
+                                  onClick={() => handleDeleteResource(resource.id)}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
                             )}
                           </div>
                         </CardContent>

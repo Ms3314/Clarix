@@ -236,3 +236,37 @@ async def delete_resource(
     db.commit()
 
     return {"message": "Resource deleted successfully"}
+
+class UpdateResourceRequest(BaseModel):
+    filename: str
+
+@router.put("/{classroom_id}/resources/{resource_id}")
+async def update_resource(
+    classroom_id: int,
+    resource_id: int,
+    request: UpdateResourceRequest,
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(
+        Classroom.id == classroom_id,
+        Classroom.teacher_id == teacher.id
+    ).first()
+    if not classroom:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
+
+    resource = db.query(Resource).filter(
+        Resource.id == resource_id,
+        Resource.classroom_id == classroom_id
+    ).first()
+    if not resource:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
+
+    resource.filename = request.filename
+    db.commit()
+    db.refresh(resource)
+
+    return {
+        "message": "Resource updated successfully",
+        "resource": get_resource_response(resource)
+    }
