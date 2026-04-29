@@ -35,6 +35,10 @@ class ClassroomDetailResponse(ClassroomResponse):
 class EnrollStudentRequest(BaseModel):
     email: EmailStr
 
+class ClassroomUpdate(BaseModel):
+    name: str
+    description: str = ""
+
 class StudentResponse(BaseModel):
     id: int
     username: str
@@ -117,6 +121,37 @@ async def get_classroom(
         ).first()
         if not enrollment:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    return {
+        "id": classroom.id,
+        "name": classroom.name,
+        "description": classroom.description,
+        "teacher_id": classroom.teacher_id,
+        "invite_code": classroom.invite_code,
+        "created_at": classroom.created_at,
+        "student_count": len(classroom.enrollments),
+        "resource_count": len(classroom.resources),
+        "quiz_count": len(classroom.quizzes)
+    }
+
+@router.put("/{classroom_id}")
+async def update_classroom(
+    classroom_id: int,
+    request: ClassroomUpdate,
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(
+        Classroom.id == classroom_id,
+        Classroom.teacher_id == teacher.id
+    ).first()
+    if not classroom:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
+
+    classroom.name = request.name
+    classroom.description = request.description
+    db.commit()
+    db.refresh(classroom)
 
     return {
         "id": classroom.id,
