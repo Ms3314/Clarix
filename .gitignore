@@ -16,3 +16,4 @@ venv.bak/
 node_modules/
 dist/
 build/
+.claude

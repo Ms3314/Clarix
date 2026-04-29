@@ -18,6 +18,42 @@ def get_chroma_client(classroom_id: int):
         persist_directory=persist_directory
     )
 
+def index_resource_from_url(url: str, classroom_id: int, resource_id: int) -> bool:
+    import tempfile
+    import httpx
+    try:
+        from langchain_community.document_loaders import PyPDFLoader
+        from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+        response = httpx.get(url, timeout=60.0)
+        response.raise_for_status()
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            tmp_file.write(response.content)
+            tmp_path = tmp_file.name
+
+        loader = PyPDFLoader(tmp_path)
+        documents = loader.load()
+
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200,
+        )
+        chunks = text_splitter.split_documents(documents)
+
+        for chunk in chunks:
+            chunk.metadata["classroom_id"] = classroom_id
+            chunk.metadata["resource_id"] = resource_id
+
+        vectorstore = get_chroma_client(classroom_id)
+        vectorstore.add_documents(chunks)
+
+        os.remove(tmp_path)
+        return True
+    except Exception as e:
+        print(f"Error indexing resource from URL: {e}")
+        return False
+
 def index_resource(file_path: str, classroom_id: int, resource_id: int) -> bool:
     try:
         from langchain_community.document_loaders import PyPDFLoader

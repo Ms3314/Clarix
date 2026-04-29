@@ -10,9 +10,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }) => {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('clarix_token='));
+  const token = localStorage.getItem('clarix_token');
 
   if (!token) {
     return <Navigate to="/" replace />;

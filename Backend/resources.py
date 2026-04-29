@@ -1,14 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Annotated, List
 from pydantic import BaseModel
 from Backend.auth import get_current_teacher, get_current_student, get_current_user
 from Backend.models import Users, Classroom, Resource
 from Backend.Database import SessionLocal
-from Backend.rag_service import index_resource, generate_rag_response
+from Backend.rag_service import index_resource_from_url, generate_rag_response
 import os
 from datetime import datetime
-from pathlib import Path
 
 router = APIRouter(
     prefix="/classrooms",
@@ -17,8 +16,15 @@ router = APIRouter(
 
 db_dependency = Annotated[Session, Depends(SessionLocal)]
 
-UPLOAD_DIR = "uploads/resources"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+BUCKET_NAME = "resources"
+
+def get_supabase_client():
+    from supabase import create_client, Client
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SERVICE_KEY")
+    if not url or not key:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+    return create_client(url, key)
 
 class ResourceResponse(BaseModel):
     id: int
@@ -26,6 +32,7 @@ class ResourceResponse(BaseModel):
     file_size: int
     indexed: bool
     created_at: datetime
+    file_url: str = None
 
 class ChatRequest(BaseModel):
     query: str
@@ -34,6 +41,15 @@ class ChatResponse(BaseModel):
     response: str
     sources: list
 
+class UploadUrlRequest(BaseModel):
+    filename: str
+    file_size: int
+
+class CreateResourceRequest(BaseModel):
+    filename: str
+    file_size: int
+    file_path: str
+
 def get_resource_response(resource: Resource):
     return {
         "id": resource.id,
@@ -41,13 +57,14 @@ def get_resource_response(resource: Resource):
         "file_size": resource.file_size,
         "indexed": resource.indexed,
         "created_at": resource.created_at,
-        "classroom_id": resource.classroom_id
+        "classroom_id": resource.classroom_id,
+        "file_url": resource.file_path
     }
 
-@router.post("/{classroom_id}/resources")
-async def upload_resource(
+@router.post("/{classroom_id}/resources/generate-upload-url")
+async def generate_upload_url(
     classroom_id: int,
-    file: UploadFile = File(...),
+    request: UploadUrlRequest,
     teacher: Users = Depends(get_current_teacher),
     db: Session = Depends(SessionLocal)
 ):
@@ -58,26 +75,59 @@ async def upload_resource(
     if not classroom:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
 
-    if not file.filename.endswith('.pdf'):
+    if not request.filename.endswith('.pdf'):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF files are allowed")
 
-    file_path = os.path.join(UPLOAD_DIR, f"{classroom_id}_{file.filename}")
-    with open(file_path, "wb") as f:
-        content = await file.read()
-        f.write(content)
+    try:
+        supabase = get_supabase_client()
+        file_path = f"classrooms/{classroom_id}/{classroom_id}_{request.filename}"
+        
+        presigned_data = supabase.storage.from_(BUCKET_NAME).create_signed_url(
+            file_path,
+            expires_in=3600,
+            options={"contentType": "application/pdf"}
+        )
+        
+        return {
+            "upload_url": presigned_data["signedURL"],
+            "file_path": file_path
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate upload URL: {str(e)}")
+
+@router.post("/{classroom_id}/resources")
+async def create_resource(
+    classroom_id: int,
+    request: CreateResourceRequest,
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(SessionLocal)
+):
+    classroom = db.query(Classroom).filter(
+        Classroom.id == classroom_id,
+        Classroom.teacher_id == teacher.id
+    ).first()
+    if not classroom:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
+
+    if not request.filename.endswith('.pdf'):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF files are allowed")
+
+    supabase = get_supabase_client()
+    public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(request.file_path)
+    full_url = f"{os.getenv('SUPABASE_URL')}/storage/v1/object/public/{BUCKET_NAME}/{request.file_path}"
 
     resource = Resource(
         classroom_id=classroom_id,
-        filename=file.filename,
-        file_path=file_path,
-        file_size=len(content),
+        filename=request.filename,
+        file_path=full_url,
+        file_size=request.file_size,
         indexed=False
     )
     db.add(resource)
     db.commit()
     db.refresh(resource)
 
-    indexed = index_resource(file_path, classroom_id, resource.id)
+    indexed = index_resource_from_url(full_url, classroom_id, resource.id)
     resource.indexed = indexed
     resource.indexed_at = datetime.utcnow() if indexed else None
     db.commit()
@@ -159,8 +209,12 @@ async def delete_resource(
     if not resource:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
 
-    if os.path.exists(resource.file_path):
-        os.remove(resource.file_path)
+    try:
+        supabase = get_supabase_client()
+        file_path = resource.file_path.split("/object/public/")[-1]
+        supabase.storage.from_(BUCKET_NAME).remove([file_path])
+    except Exception as e:
+        print(f"Failed to delete from Supabase: {e}")
 
     db.delete(resource)
     db.commit()

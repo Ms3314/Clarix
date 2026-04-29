@@ -14,11 +14,20 @@ const Dashboard = () => {
   const navigate = useNavigate()
 
   useEffect(() => {
+    console.log("+++++++++++++++")
+    console.log("+++++++++++++++")
+    console.log("+++++++++++++++")
+    console.log("+++++++++++++++")
+    console.log("+++++++++++++++")
+    console.log("+++++++++++++++")
+    console.log("+++++++++++++++")
+    console.log("+++++++++++++++")
     fetchUserAndClassrooms()
   }, [])
 
   const fetchUserAndClassrooms = async () => {
     try {
+      console.log("fetching the user here lets see")
       const userResponse = await api.get('/auth/me')
       setUser(userResponse.data)
 
@@ -48,7 +57,7 @@ const Dashboard = () => {
   }
 
   const handleLogout = () => {
-    document.cookie = 'clarix_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    localStorage.removeItem('clarix_token')
     navigate('/')
   }
 
@@ -102,7 +111,7 @@ const Dashboard = () => {
                       type="text"
                       required
                       value={newClassroom.name}
-                      onChange={(e) => setNewClassroom({...newClassroom, name: e.target.value})}
+                      onChange={(e) => setNewClassroom({ ...newClassroom, name: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       placeholder="Enter classroom name"
                     />
@@ -111,7 +120,7 @@ const Dashboard = () => {
                     <label className="block text-sm font-medium mb-1">Description</label>
                     <textarea
                       value={newClassroom.description}
-                      onChange={(e) => setNewClassroom({...newClassroom, description: e.target.value})}
+                      onChange={(e) => setNewClassroom({ ...newClassroom, description: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       rows="3"
                       placeholder="Enter classroom description"

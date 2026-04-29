@@ -32,6 +32,10 @@ class UserCreate(BaseModel):
     password: str
     role: str = "student"  # 'teacher' or 'student'
 
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
 class UserResponse(BaseModel):
     id: int
     username: str
@@ -60,7 +64,6 @@ async def get_current_user(request: Request, db: db_dependency):
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
-
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
@@ -104,7 +107,9 @@ def create_access_token(username: str, user_id: int, role: str, expires_delta: t
     encode.update({'exp': expires})
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+
+# this is the route for signin
+@router.post("/signup", status_code=status.HTTP_201_CREATED)
 async def create_user(db: db_dependency, create_user_request: UserCreate):
     # Check if username already exists
     existing_user = db.query(Users).filter(Users.username == create_user_request.username).first()
@@ -139,10 +144,14 @@ async def create_user(db: db_dependency, create_user_request: UserCreate):
         }
     }
 
-@router.post("/token", response_model=Token)
-async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+
+# this is the route for login
+@router.post("/login", response_model=Token)
+async def login_for_access_token(login_request: UserLogin,
                                   db: db_dependency, response: Response):
-    user = authenticate_user(form_data.username, form_data.password, db)
+    print("do pring statements not work over here")
+    user = authenticate_user(login_request.username, login_request.password, db)
+    print("we got an user here",user)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail="Could not validate user.")
@@ -163,6 +172,7 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
         }
     }
 
+# this is the route for gettin current user
 @router.get("/me")
 async def get_me(user: dict = Depends(get_current_user)):
     return {

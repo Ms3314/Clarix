@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import api from '@/lib/api'
+import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 
 const ClassroomDetail = () => {
@@ -16,8 +17,10 @@ const ClassroomDetail = () => {
   const [resources, setResources] = useState([])
   const [quizzes, setQuizzes] = useState([])
   const [flashcards, setFlashcards] = useState([])
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteLoading, setInviteLoading] = useState(false)
 
-  useEffect(() => {
+  useEffect(() => { 
     fetchData()
   }, [id])
 
@@ -83,13 +86,28 @@ const ClassroomDetail = () => {
     }
   }
 
-  const handleInviteStudent = async (email) => {
+  const handleInviteStudent = async () => {
+    if (!inviteEmail) return
+    setInviteLoading(true)
     try {
-      await api.post(`/classrooms/${id}/invite`, { email })
+      await api.post(`/classrooms/${id}/invite`, { email: inviteEmail })
       toast.success('Student invited successfully!')
+      setInviteEmail('')
       fetchStudents()
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to invite student')
+    } finally {
+      setInviteLoading(false)
+    }
+  }
+
+  const handleDeleteResource = async (resourceId) => {
+    try {
+      await api.delete(`/classrooms/${id}/resources/${resourceId}`)
+      toast.success('Resource deleted successfully!')
+      fetchResources()
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to delete resource')
     }
   }
 
@@ -139,7 +157,7 @@ const ClassroomDetail = () => {
         <div className="bg-white rounded-lg shadow">
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px">
-              {['overview', 'resources', 'chat', 'quizzes', 'flashcards'].map((tab) => (
+            {['overview', 'students', 'resources', 'chat', 'quizzes', 'flashcards'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -182,12 +200,120 @@ const ClassroomDetail = () => {
               </div>
             )}
 
+            {activeTab === 'students' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-semibold">Students</h2>
+                  <span className="text-sm text-gray-500">{students.length} enrolled</span>
+                </div>
+
+                {user?.role === 'teacher' && (
+                  <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h3 className="text-sm font-medium text-gray-700 mb-3">Invite a Student</h3>
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleInviteStudent()}
+                        placeholder="Enter student email"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <Button
+                        onClick={handleInviteStudent}
+                        disabled={inviteLoading || !inviteEmail}
+                      >
+                        {inviteLoading ? 'Sending...' : 'Send Invite'}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Or share the invite code: <strong>{classroom.invite_code}</strong>
+                    </p>
+                  </div>
+                )}
+
+                {students.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-gray-500">No students enrolled yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {students.map((student) => (
+                      <div
+                        key={student.id}
+                        className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-sm">
+                            {student.username?.[0]?.toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{student.username}</p>
+                            <p className="text-xs text-gray-500">{student.email}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {activeTab === 'resources' && (
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-semibold">Resources</h2>
                   {user?.role === 'teacher' && (
-                    <Button>Upload Resource</Button>
+                    <div className="flex gap-2">
+                      <input
+                        type="file"
+                        id="resource-upload"
+                        accept=".pdf"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files[0]
+                          if (!file) return
+
+                          try {
+                            toast.info('Generating upload URL...')
+                            
+                            const { data: urlData } = await api.post(
+                              `/classrooms/${id}/resources/generate-upload-url`,
+                              { filename: file.name, file_size: file.size }
+                            )
+
+                            toast.info('Uploading to Supabase...')
+                            
+                            const uploadResponse = await fetch(urlData.upload_url, {
+                              method: 'PUT',
+                              body: file,
+                              headers: {
+                                'Content-Type': 'application/pdf'
+                              }
+                            })
+
+                            if (!uploadResponse.ok) throw new Error('Upload failed')
+
+                            toast.info('Creating resource record...')
+
+                            await api.post(`/classrooms/${id}/resources`, {
+                              filename: file.name,
+                              file_size: file.size,
+                              file_path: urlData.file_path
+                            })
+
+                            toast.success('Resource uploaded and indexing started!')
+                            fetchResources()
+                          } catch (error) {
+                            console.error('Upload error:', error)
+                            toast.error(error.response?.data?.detail || error.message || 'Failed to upload resource')
+                          }
+                        }}
+                      />
+                      <Button onClick={() => document.getElementById('resource-upload').click()}>
+                        Upload Resource
+                      </Button>
+                    </div>
                   )}
                 </div>
                 {resources.length === 0 ? (
@@ -205,7 +331,9 @@ const ClassroomDetail = () => {
                               </p>
                             </div>
                             {user?.role === 'teacher' && (
-                              <Button variant="destructive" size="sm">Delete</Button>
+                              <Button variant="destructive" size="sm" onClick={() => handleDeleteResource(resource.id)}>
+                                Delete
+                              </Button>
                             )}
                           </div>
                         </CardContent>

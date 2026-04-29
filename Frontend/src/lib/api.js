@@ -10,10 +10,7 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('clarix_token='))
-      ?.split('=')[1];
+    const token = localStorage.getItem('clarix_token'); // ✅ changed
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -27,6 +24,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      localStorage.removeItem('clarix_token'); // ✅ clear token on 401
       window.location.href = '/';
     }
     return Promise.reject(error);

@@ -6,13 +6,14 @@ from Backend.models import Users, Classroom, Enrollment
 from Backend.Database import SessionLocal
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
+from Backend.Database import get_db
 
 router = APIRouter(
     prefix="/classrooms",
     tags=["classrooms"]
 )
 
-db_dependency = Annotated[Session, Depends(SessionLocal)]
+db_dependency = Annotated[Session, Depends(get_db)]
 
 class ClassroomCreate(BaseModel):
     name: str
@@ -45,8 +46,9 @@ class StudentResponse(BaseModel):
 async def create_classroom(
     classroom_data: ClassroomCreate,
     teacher: Users = Depends(get_current_teacher),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
+    print("what is this keywork typeshi")
     new_classroom = Classroom(
         name=classroom_data.name,
         description=classroom_data.description,
@@ -70,14 +72,16 @@ async def create_classroom(
 @router.get("/")
 async def list_classrooms(
     user: Users = Depends(get_current_user),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
     if user.role == "teacher":
         classrooms = db.query(Classroom).filter(Classroom.teacher_id == user.id).all()
+        print("classrooms for teacher",classrooms)
     else:
         enrollments = db.query(Enrollment).filter(Enrollment.user_id == user.id).all()
         classroom_ids = [e.classroom_id for e in enrollments]
         classrooms = db.query(Classroom).filter(Classroom.id.in_(classroom_ids)).all()
+        print("classrooms for student",classrooms)
 
     return {
         "classrooms": [
@@ -97,7 +101,7 @@ async def list_classrooms(
 async def get_classroom(
     classroom_id: int,
     user: Users = Depends(get_current_user),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
     classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
     if not classroom:
@@ -131,7 +135,7 @@ async def invite_student(
     classroom_id: int,
     request: EnrollStudentRequest,
     teacher: Users = Depends(get_current_teacher),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
     classroom = db.query(Classroom).filter(
         Classroom.id == classroom_id,
@@ -165,7 +169,7 @@ async def remove_student(
     classroom_id: int,
     student_id: int,
     teacher: Users = Depends(get_current_teacher),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
     classroom = db.query(Classroom).filter(
         Classroom.id == classroom_id,
@@ -190,7 +194,7 @@ async def remove_student(
 async def list_students(
     classroom_id: int,
     user: Users = Depends(get_current_user),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
     classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
     if not classroom:
@@ -226,7 +230,7 @@ async def list_students(
 async def delete_classroom(
     classroom_id: int,
     teacher: Users = Depends(get_current_teacher),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
     classroom = db.query(Classroom).filter(
         Classroom.id == classroom_id,

@@ -1,6 +1,6 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, status, Depends, HTTPException
-from fastapi.responses import RedirectResponse, JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse, JSONResponse, Response
+from starlette.middleware.base import BaseHTTPMiddleware
 from pathlib import Path
 from Backend import models, auth
 from Backend.Database import engine, SessionLocal
@@ -12,14 +12,20 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 app = FastAPI(title="Clarix API", version="1.0.0")
 
-# CORS middleware for React frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+class CORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        origin = request.headers.get("origin", "")
+        if request.method == "OPTIONS":
+            response = Response(status_code=200)
+        else:
+            response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = origin or "*"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Cookie"
+        return response
+
+app.add_middleware(CORSMiddleware)
 
 # Import and include routers
 from Backend.classroom import router as classroom_router

@@ -22,20 +22,25 @@ const Index = () => {
 
     try {
       if (isLogin) {
-        const response = await api.post('/auth/token',
-          new URLSearchParams({
-            username: formData.username,
-            password: formData.password
-          }),
-          { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-        )
-
-        document.cookie = `clarix_token=${response.data.access_token}; path=/; max-age=1200`
+        const response = await api.post('/auth/login', {
+          username: formData.username,
+          password: formData.password
+        })
+        console.log("response", response , "the token shud be saves")
+        localStorage.setItem('clarix_token', response.data.access_token)
 
         toast.success('Login successful!')
-        navigate('/dashboard')
+
+        // Redirect based on user role
+        const userRole = response.data.user.role
+        console.log("this is the userRole", userRole)
+        if (userRole === 'teacher') {
+          navigate('/dashboard')
+        } else {
+          navigate('/dashboard')
+        }
       } else {
-        await api.post('/auth/', {
+        await api.post('/auth/signup', {
           username: formData.username,
           email: formData.email,
           password: formData.password,
@@ -46,7 +51,7 @@ const Index = () => {
         setIsLogin(true)
       }
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'An error occurred')
+      toast.error(error.response?.data?.detail || error.response?.data?.message || 'An error occurred')
     } finally {
       setLoading(false)
     }
@@ -71,7 +76,7 @@ const Index = () => {
                 type="text"
                 required
                 value={formData.username}
-                onChange={(e) => setFormData({...formData, username: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                 placeholder="Enter username"
               />
             </div>
@@ -87,7 +92,7 @@ const Index = () => {
                     type="email"
                     required
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="Enter email"
                   />
                 </div>
@@ -102,7 +107,7 @@ const Index = () => {
                         type="radio"
                         value="student"
                         checked={formData.role === 'student'}
-                        onChange={(e) => setFormData({...formData, role: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                         className="mr-2"
                       />
                       Student
@@ -112,7 +117,7 @@ const Index = () => {
                         type="radio"
                         value="teacher"
                         checked={formData.role === 'teacher'}
-                        onChange={(e) => setFormData({...formData, role: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                         className="mr-2"
                       />
                       Teacher
@@ -131,7 +136,7 @@ const Index = () => {
                 type="password"
                 required
                 value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 placeholder="Enter password"
               />
             </div>
