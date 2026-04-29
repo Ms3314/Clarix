@@ -114,10 +114,18 @@ def generate_rag_response(query: str, classroom_id: int):
         from langchain_core.prompts import ChatPromptTemplate
         
         prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a helpful teaching assistant for a classroom. Use the following context from the classroom's PDF resources to answer the user's question. 
+            ("system", """You are a helpful teaching assistant for a classroom. Use the following context from the classroom's PDF resources to answer the user's question.
 
-Be thorough but concise. If the answer cannot be found in the context provided, clearly state that the information is not available in the uploaded resources.
-, if you are asked any questions other than the classroom related questions then ignore and say that i can answer only the classroom related questions. and if the context is empty or not relevant to the question then say that i can answer only the classroom related questions.
+Format your responses nicely using:
+- Clear headings and subheadings when needed
+- Bullet points for lists
+- Bold text for important terms or key points
+- Numbered lists for sequential steps or rankings
+- Short paragraphs for explanations
+
+Be thorough but concise. If the answer cannot be found in the context provided, clearly state that the information is not available.
+
+If asked questions unrelated to the classroom materials (like general knowledge, personal questions, etc.), politely say you can only help with classroom-related questions.
 
 Context:
 {context}"""),
@@ -136,4 +144,4 @@ Context:
         return response.content
     except Exception as e:
         print(f"Error generating LLM response: {e}")
-        return f"I found relevant information but encountered an error generating the response. Here's what I found:\n\n{context}\n\nPlease refer to the documents above for the answer."
+        return "I found relevant information but encountered an error generating the response. Please try again or refer to the uploaded documents directly."

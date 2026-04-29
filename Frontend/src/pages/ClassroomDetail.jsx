@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import api from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
+import ReactMarkdown from 'react-markdown'
 
 const getErrorMessage = (error) => {
   if (!error.response) return error.message || 'Network error'
@@ -55,6 +56,8 @@ const ClassroomDetail = () => {
         fetchResources()
         fetchQuizzes()
         fetchFlashcards()
+      } else {
+        fetchResources()
       }
     } catch (error) {
       toast.error(getErrorMessage(error))
@@ -186,30 +189,30 @@ const ClassroomDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0d0d0d' }}>
+        <div className="text-lg" style={{ color: '#888888' }}>Loading...</div>
       </div>
     )
   }
 
   if (!classroom) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Classroom not found</div>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0d0d0d' }}>
+        <div className="text-lg" style={{ color: '#888888' }}>Classroom not found</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
+    <div className="min-h-screen" style={{ background: '#0d0d0d' }}>
+      <nav style={{ background: '#111111', borderBottom: '1px solid #333333' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            <button onClick={() => navigate('/dashboard')} className="text-xl font-bold text-gray-900">
+            <button onClick={() => navigate('/dashboard')} className="text-xl font-bold" style={{ color: '#ffffff' }}>
               ← Back to Dashboard
             </button>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">
+              <span className="text-sm" style={{ color: '#888888' }}>
                 {user?.username} ({user?.role})
               </span>
             </div>
@@ -219,16 +222,16 @@ const ClassroomDetail = () => {
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">{classroom.name}</h1>
-          <p className="text-gray-600 mt-2">{classroom.description}</p>
-          <div className="flex gap-4 mt-4 text-sm text-gray-600">
-            <span>Invite Code: <strong>{classroom.invite_code}</strong></span>
+          <h1 className="text-3xl font-bold" style={{ color: '#f0f0f0' }}>{classroom.name}</h1>
+          <p className="mt-2" style={{ color: '#888888' }}>{classroom.description}</p>
+          <div className="flex gap-4 mt-4 text-sm" style={{ color: '#888888' }}>
+            <span>Invite Code: <strong style={{ color: '#f0f0f0' }}>{classroom.invite_code}</strong></span>
             <span>Students: {classroom.student_count || 0}</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow">
-          <div className="border-b border-gray-200">
+        <div className="rounded-lg" style={{ background: '#111111', border: '1px solid #333333' }}>
+          <div className="border-b" style={{ borderColor: '#333333' }}>
             <nav className="flex -mb-px">
               {['overview', 'students', 'resources', 'chat', 'quizzes', 'flashcards'].map((tab) => (
                 <button
@@ -238,9 +241,13 @@ const ClassroomDetail = () => {
                     if (tab === 'chat') fetchChatHistory()
                   }}
                   className={`py-4 px-6 font-medium text-sm ${activeTab === tab
-                    ? 'border-b-2 border-blue-500 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-b-2'
+                    : ''
                     }`}
+                  style={activeTab === tab 
+                    ? { borderColor: '#ffffff', color: '#ffffff' }
+                    : { color: '#666666' }
+                  }
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
@@ -251,24 +258,24 @@ const ClassroomDetail = () => {
           <div className="p-6">
             {activeTab === 'overview' && (
               <div>
-                <h2 className="text-xl font-semibold mb-4">Classroom Overview</h2>
+                <h2 className="text-xl font-semibold mb-4" style={{ color: '#f0f0f0' }}>Classroom Overview</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card>
+                  <Card style={{ background: '#1a1a1a', border: '1px solid #333333' }}>
                     <CardHeader>
-                      <CardTitle>Resources</CardTitle>
-                      <CardDescription>{classroom.resource_count || 0} uploaded</CardDescription>
+                      <CardTitle style={{ color: '#f0f0f0' }}>Resources</CardTitle>
+                      <CardDescription style={{ color: '#888888' }}>{classroom.resource_count || 0} uploaded</CardDescription>
                     </CardHeader>
                   </Card>
-                  <Card>
+                  <Card style={{ background: '#1a1a1a', border: '1px solid #333333' }}>
                     <CardHeader>
-                      <CardTitle>Quizzes</CardTitle>
-                      <CardDescription>{classroom.quiz_count || 0} created</CardDescription>
+                      <CardTitle style={{ color: '#f0f0f0' }}>Quizzes</CardTitle>
+                      <CardDescription style={{ color: '#888888' }}>{classroom.quiz_count || 0} created</CardDescription>
                     </CardHeader>
                   </Card>
-                  <Card>
+                  <Card style={{ background: '#1a1a1a', border: '1px solid #333333' }}>
                     <CardHeader>
-                      <CardTitle>Students</CardTitle>
-                      <CardDescription>{classroom.student_count || 0} enrolled</CardDescription>
+                      <CardTitle style={{ color: '#f0f0f0' }}>Students</CardTitle>
+                      <CardDescription style={{ color: '#888888' }}>{classroom.student_count || 0} enrolled</CardDescription>
                     </CardHeader>
                   </Card>
                 </div>
@@ -278,13 +285,13 @@ const ClassroomDetail = () => {
             {activeTab === 'students' && (
               <div>
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold">Students</h2>
-                  <span className="text-sm text-gray-500">{students.length} enrolled</span>
+                  <h2 className="text-xl font-semibold" style={{ color: '#f0f0f0' }}>Students</h2>
+                  <span className="text-sm" style={{ color: '#666666' }}>{students.length} enrolled</span>
                 </div>
 
                 {user?.role === 'teacher' && (
-                  <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <h3 className="text-sm font-medium text-gray-700 mb-3">Invite a Student</h3>
+                  <div className="mb-6 p-4 rounded-lg" style={{ background: '#1a1a1a', border: '1px solid #333333' }}>
+                    <h3 className="text-sm font-medium mb-3" style={{ color: '#888888' }}>Invite a Student</h3>
                     <div className="flex gap-2">
                       <input
                         type="email"
@@ -292,39 +299,46 @@ const ClassroomDetail = () => {
                         onChange={(e) => setInviteEmail(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleInviteStudent()}
                         placeholder="Enter student email"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 px-3 py-2 rounded-md text-sm"
+                        style={{ 
+                          background: '#0d0d0d', 
+                          border: '1px solid #444444', 
+                          color: '#f0f0f0'
+                        }}
                       />
                       <Button
                         onClick={handleInviteStudent}
                         disabled={inviteLoading || !inviteEmail}
+                        style={{ background: '#ffffff', color: '#000000' }}
                       >
                         {inviteLoading ? 'Sending...' : 'Send Invite'}
                       </Button>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Or share the invite code: <strong>{classroom.invite_code}</strong>
+                    <p className="text-xs mt-2" style={{ color: '#666666' }}>
+                      Or share the invite code: <strong style={{ color: '#f0f0f0' }}>{classroom.invite_code}</strong>
                     </p>
                   </div>
                 )}
 
                 {students.length === 0 ? (
                   <div className="text-center py-12">
-                    <p className="text-gray-500">No students enrolled yet.</p>
+                    <p style={{ color: '#666666' }}>No students enrolled yet.</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {students.map((student) => (
                       <div
                         key={student.id}
-                        className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg"
+                        className="flex items-center justify-between px-4 py-3 rounded-lg"
+                        style={{ background: '#1a1a1a', border: '1px solid #333333' }}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-sm">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium" style={{ background: '#333333', color: '#ffffff' }}>
                             {student.username?.[0]?.toUpperCase()}
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-gray-900">{student.username}</p>
-                            <p className="text-xs text-gray-500">{student.email}</p>
+                            <p className="text-sm font-medium" style={{ color: '#f0f0f0' }}>{student.username}</p>
+                            <p className="text-xs" style={{ color: '#666666' }}>{student.email}</p>
                           </div>
                         </div>
                       </div>
@@ -337,7 +351,7 @@ const ClassroomDetail = () => {
             {activeTab === 'resources' && (
               <div>
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold">Resources</h2>
+                  <h2 className="text-xl font-semibold" style={{ color: '#f0f0f0' }}>Resources</h2>
                   {user?.role === 'teacher' && (
                     <div className="flex gap-2">
                       <input
@@ -391,6 +405,7 @@ const ClassroomDetail = () => {
                       <Button
                         onClick={() => document.getElementById('resource-upload').click()}
                         disabled={uploading}
+                        style={{ background: '#ffffff', color: '#000000' }}
                       >
                         {uploading ? 'Uploading...' : 'Upload Resource'}
                       </Button>
@@ -398,11 +413,11 @@ const ClassroomDetail = () => {
                   )}
                 </div>
                 {resources.length === 0 ? (
-                  <p className="text-gray-500">No resources uploaded yet.</p>
+                  <p style={{ color: '#666666' }}>No resources uploaded yet.</p>
                 ) : (
                   <div className="space-y-4">
                     {resources.map((resource) => (
-                      <Card key={resource.id}>
+                      <Card key={resource.id} style={{ background: '#1a1a1a', border: '1px solid #333333' }}>
                         <CardContent className="pt-6">
                           <div className="flex justify-between items-center">
                             <div className="flex-1">
@@ -412,17 +427,22 @@ const ClassroomDetail = () => {
                                     type="text"
                                     value={editingFilename}
                                     onChange={(e) => setEditingFilename(e.target.value)}
-                                    className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="px-2 py-1 rounded text-sm"
+                                    style={{ 
+                                      background: '#0d0d0d', 
+                                      border: '1px solid #444444', 
+                                      color: '#f0f0f0'
+                                    }}
                                     autoFocus
                                     onKeyDown={(e) => {
                                       if (e.key === 'Enter') saveFilename(resource.id)
                                       if (e.key === 'Escape') cancelEditingFilename()
                                     }}
                                   />
-                                  <Button size="sm" onClick={() => saveFilename(resource.id)}>
+                                  <Button size="sm" onClick={() => saveFilename(resource.id)} style={{ background: '#ffffff', color: '#000000' }}>
                                     Save
                                   </Button>
-                                  <Button size="sm" variant="outline" onClick={cancelEditingFilename}>
+                                  <Button size="sm" variant="outline" onClick={cancelEditingFilename} style={{ borderColor: '#444444', color: '#f0f0f0' }}>
                                     Cancel
                                   </Button>
                                 </div>
@@ -432,11 +452,12 @@ const ClassroomDetail = () => {
                                     href={resource.file_url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                    className="font-medium cursor-pointer"
+                                    style={{ color: '#ffffff' }}
                                   >
                                     {resource.filename}
                                   </a>
-                                  <p className="text-sm text-gray-600">
+                                  <p className="text-sm" style={{ color: '#666666' }}>
                                     {resource.indexed ? 'Indexed' : 'Processing...'}
                                   </p>
                                 </div>
@@ -448,6 +469,7 @@ const ClassroomDetail = () => {
                                   size="sm" 
                                   variant="outline"
                                   onClick={() => startEditingFilename(resource)}
+                                  style={{ borderColor: '#444444', color: '#f0f0f0' }}
                                 >
                                   Edit
                                 </Button>
@@ -470,15 +492,15 @@ const ClassroomDetail = () => {
             )}
 
             {activeTab === 'chat' && (
-              <div className="h-[500px] flex flex-col" style={{ background: '#0d0d0d', borderRadius: '14px', overflow: 'hidden' }}>
-                <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', background: '#0d0d0d' }}>
+              <div className="h-[500px] flex flex-col" style={{ background: '#0d0d0d', borderRadius: '14px', overflow: 'hidden', border: '1px solid #333333' }}>
+                <div style={{ padding: '16px 24px', borderBottom: '1px solid #333333', background: '#0d0d0d' }}>
                   <h2 className="text-lg font-semibold" style={{ color: '#f0f0f0' }}>Chat with Resources</h2>
                   <p className="text-sm" style={{ color: '#888888' }}>Ask questions about your uploaded documents</p>
                 </div>
                 
                 <div style={{ flex: 1, overflow: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {chatMessages.length === 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#444444' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#666666' }}>
                       <div style={{ fontSize: '3rem', opacity: 0.4 }}>📄</div>
                       <p style={{ marginTop: '16px' }}>Ask questions about your uploaded resources</p>
                       <p style={{ fontSize: '0.85rem', marginTop: '8px' }}>The AI will answer based on your PDFs</p>
@@ -498,7 +520,7 @@ const ClassroomDetail = () => {
                         alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start'
                       }}>
                         {msg.role === 'assistant' && (
-                          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#444444', marginBottom: '3px', paddingLeft: '4px' }}>AI</span>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#666666', marginBottom: '3px', paddingLeft: '4px' }}>AI</span>
                         )}
                         <div style={{ 
                           padding: '10px 15px', 
@@ -506,13 +528,12 @@ const ClassroomDetail = () => {
                           fontSize: '0.9rem', 
                           lineHeight: 1.5,
                           wordBreak: 'break-word',
-                          whiteSpace: 'pre-wrap',
                           ...(msg.role === 'user' 
-                            ? { background: '#ffffff', color: '#000000', borderBottomRightRadius: '4px', boxShadow: '0 4px 16px rgba(255,255,255,0.08)' }
-                            : { background: '#1c1c1c', color: '#f0f0f0', borderBottomLeftRadius: '4px', border: '1px solid rgba(255,255,255,0.08)' }
+                            ? { background: '#ffffff', color: '#000000', borderBottomRightRadius: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }
+                            : { background: '#2a2a2a', color: '#f0f0f0', borderBottomLeftRadius: '4px', border: '1px solid #444444' }
                           )
                         }}>
-                          {msg.content}
+                          {msg.role === 'user' ? msg.content : <ReactMarkdown>{msg.content}</ReactMarkdown>}
                         </div>
                       </div>
                     </div>
@@ -520,15 +541,15 @@ const ClassroomDetail = () => {
                   
                   {chatLoading && (
                     <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                      <div style={{ background: '#1c1c1c', padding: '10px 15px', borderRadius: '18px', borderBottomLeftRadius: '4px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div style={{ background: '#2a2a2a', padding: '10px 15px', borderRadius: '18px', borderBottomLeftRadius: '4px', border: '1px solid #444444' }}>
                         <span style={{ color: '#888888' }}>Thinking...</span>
                       </div>
                     </div>
                   )}
                 </div>
                 
-                <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.08)', background: '#0d0d0d' }}>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', padding: '8px 12px 8px 18px' }}>
+                <div style={{ padding: '16px 24px', borderTop: '1px solid #333333', background: '#0d0d0d' }}>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#1a1a1a', border: '1px solid #444444', borderRadius: '14px', padding: '8px 12px 8px 18px' }}>
                     <input
                       type="text"
                       value={chatInput}
@@ -575,60 +596,18 @@ const ClassroomDetail = () => {
             )}
 
             {activeTab === 'quizzes' && (
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold">Quizzes</h2>
-                  {user?.role === 'teacher' && (
-                    <Button>Create Quiz</Button>
-                  )}
-                </div>
-                {quizzes.length === 0 ? (
-                  <p className="text-gray-500">No quizzes created yet.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {quizzes.map((quiz) => (
-                      <Card key={quiz.id}>
-                        <CardContent className="pt-6">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="font-medium">{quiz.title}</p>
-                              <p className="text-sm text-gray-600">
-                                {quiz.question_count} questions
-                                {quiz.is_ai_generated && ' (AI Generated)'}
-                              </p>
-                            </div>
-                            <Button variant="outline" size="sm">View</Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px' }}>
+                <div style={{ fontSize: '4rem' }}>📝</div>
+                <h2 className="text-xl font-semibold mt-4" style={{ color: '#f0f0f0' }}>Coming Soon</h2>
+                <p className="text-sm mt-2" style={{ color: '#666666' }}>Quiz functionality will be available soon!</p>
               </div>
             )}
 
             {activeTab === 'flashcards' && (
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold">Flashcards</h2>
-                  {user?.role === 'teacher' && (
-                    <Button>Create Flashcard</Button>
-                  )}
-                </div>
-                {flashcards.length === 0 ? (
-                  <p className="text-gray-500">No flashcards created yet.</p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {flashcards.map((card) => (
-                      <Card key={card.id}>
-                        <CardContent className="pt-6">
-                          <p className="font-medium">{card.front}</p>
-                          <p className="text-sm text-gray-600 mt-2">{card.back}</p>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px' }}>
+                <div style={{ fontSize: '4rem' }}>🗂️</div>
+                <h2 className="text-xl font-semibold mt-4" style={{ color: '#f0f0f0' }}>Coming Soon</h2>
+                <p className="text-sm mt-2" style={{ color: '#666666' }}>Flashcard functionality will be available soon!</p>
               </div>
             )}
           </div>

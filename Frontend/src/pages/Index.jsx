@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 
@@ -26,19 +27,9 @@ const Index = () => {
           username: formData.username,
           password: formData.password
         })
-        console.log("response", response , "the token shud be saves")
         localStorage.setItem('clarix_token', response.data.access_token)
-
         toast.success('Login successful!')
-
-        // Redirect based on user role
-        const userRole = response.data.user.role
-        console.log("this is the userRole", userRole)
-        if (userRole === 'teacher') {
-          navigate('/dashboard')
-        } else {
-          navigate('/dashboard')
-        }
+        navigate('/dashboard')
       } else {
         await api.post('/auth/signup', {
           username: formData.username,
@@ -46,29 +37,40 @@ const Index = () => {
           password: formData.password,
           role: formData.role
         })
-
         toast.success('Registration successful! Please login.')
         setIsLogin(true)
       }
     } catch (error) {
-      toast.error(error.response?.data?.detail || error.response?.data?.message || 'An error occurred')
+      const detail = error.response?.data?.detail
+      if (Array.isArray(detail)) {
+        toast.error(detail.map(d => d.msg || d).join(', '))
+      } else {
+        toast.error(detail || error.response?.data?.message || 'An error occurred')
+      }
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-lg">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            {isLogin ? 'Sign in to Clarix' : 'Create your account'}
-          </h2>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#0d0d0d' }}>
+      <Card className="w-full max-w-md" style={{ background: '#111111', border: '1px solid #333333' }}>
+        <CardHeader className="text-center pb-2">
+          <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: '#ffffff' }}>
+            <span style={{ fontSize: '2rem', fontWeight: 700, color: '#000000' }}>C</span>
+          </div>
+          <CardTitle style={{ color: '#f0f0f0', fontSize: '1.75rem' }}>
+            {isLogin ? 'Welcome Back' : 'Create Account'}
+          </CardTitle>
+          <CardDescription style={{ color: '#888888' }}>
+            {isLogin ? 'Sign in to continue to Clarix' : 'Join Clarix to start learning'}
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="username" className="block text-sm font-medium mb-2" style={{ color: '#888888' }}>
                 Username
               </label>
               <Input
@@ -78,13 +80,19 @@ const Index = () => {
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                 placeholder="Enter username"
+                style={{ 
+                  background: '#1a1a1a', 
+                  border: '1px solid #444444', 
+                  color: '#f0f0f0',
+                  padding: '12px'
+                }}
               />
             </div>
 
             {!isLogin && (
               <>
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="email" className="block text-sm font-medium mb-2" style={{ color: '#888888' }}>
                     Email
                   </label>
                   <Input
@@ -94,33 +102,51 @@ const Index = () => {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="Enter email"
+                    style={{ 
+                      background: '#1a1a1a', 
+                      border: '1px solid #444444', 
+                      color: '#f0f0f0',
+                      padding: '12px'
+                    }}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Role
+                  <label className="block text-sm font-medium mb-2" style={{ color: '#888888' }}>
+                    I am a
                   </label>
                   <div className="flex gap-4">
-                    <label className="flex items-center">
+                    <label 
+                      className="flex items-center gap-2 cursor-pointer px-4 py-3 rounded-lg border transition-all"
+                      style={{ 
+                        border: formData.role === 'student' ? '1px solid #ffffff' : '1px solid #444444',
+                        background: formData.role === 'student' ? '#222222' : '#1a1a1a'
+                      }}
+                    >
                       <input
                         type="radio"
                         value="student"
                         checked={formData.role === 'student'}
                         onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                        className="mr-2"
+                        className="sr-only"
                       />
-                      Student
+                      <span style={{ color: formData.role === 'student' ? '#ffffff' : '#888888' }}>Student</span>
                     </label>
-                    <label className="flex items-center">
+                    <label 
+                      className="flex items-center gap-2 cursor-pointer px-4 py-3 rounded-lg border transition-all"
+                      style={{ 
+                        border: formData.role === 'teacher' ? '1px solid #ffffff' : '1px solid #444444',
+                        background: formData.role === 'teacher' ? '#222222' : '#1a1a1a'
+                      }}
+                    >
                       <input
                         type="radio"
                         value="teacher"
                         checked={formData.role === 'teacher'}
                         onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                        className="mr-2"
+                        className="sr-only"
                       />
-                      Teacher
+                      <span style={{ color: formData.role === 'teacher' ? '#ffffff' : '#888888' }}>Teacher</span>
                     </label>
                   </div>
                 </div>
@@ -128,7 +154,7 @@ const Index = () => {
             )}
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium mb-2" style={{ color: '#888888' }}>
                 Password
               </label>
               <Input
@@ -138,34 +164,48 @@ const Index = () => {
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 placeholder="Enter password"
+                style={{ 
+                  background: '#1a1a1a', 
+                  border: '1px solid #444444', 
+                  color: '#f0f0f0',
+                  padding: '12px'
+                }}
               />
             </div>
-          </div>
 
-          <div>
             <Button
               type="submit"
               className="w-full"
               disabled={loading}
+              style={{ 
+                background: '#ffffff', 
+                color: '#000000',
+                padding: '12px',
+                fontWeight: 600
+              }}
             >
-              {loading ? 'Processing...' : (isLogin ? 'Sign in' : 'Register')}
+              {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
             </Button>
-          </div>
-        </form>
-
-        <div className="text-center">
+          </form>
+        </CardContent>
+        
+        <div className="text-center pb-6">
           <button
             type="button"
             onClick={() => {
               setIsLogin(!isLogin)
               setFormData({ username: '', email: '', password: '', role: 'student' })
             }}
-            className="text-sm text-blue-600 hover:text-blue-500"
+            style={{ color: '#888888', fontSize: '0.875rem', background: 'none', border: 'none', cursor: 'pointer' }}
+            className="hover:text-white transition-colors"
           >
-            {isLogin ? "Don't have an account? Register" : "Already have an account? Sign in"}
+            {isLogin ? "Don't have an account? " : "Already have an account? "}
+            <span style={{ color: '#ffffff' }}>
+              {isLogin ? 'Register' : 'Sign In'}
+            </span>
           </button>
         </div>
-      </div>
+      </Card>
     </div>
   )
 }
