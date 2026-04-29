@@ -32,6 +32,9 @@ const ClassroomDetail = () => {
   const [uploading, setUploading] = useState(false)
   const [editingResourceId, setEditingResourceId] = useState(null)
   const [editingFilename, setEditingFilename] = useState('')
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -149,6 +152,26 @@ const ClassroomDetail = () => {
       fetchResources()
     } catch (error) {
       toast.error(getErrorMessage(error))
+    }
+  }
+
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || chatLoading) return
+    
+    const userMessage = chatInput.trim()
+    setChatInput('')
+    setChatLoading(true)
+    
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    
+    try {
+      const response = await api.post(`/classrooms/${id}/chat`, { query: userMessage })
+      setChatMessages(prev => [...prev, { role: 'assistant', content: response.data.response }])
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }])
+    } finally {
+      setChatLoading(false)
     }
   }
 
@@ -317,22 +340,19 @@ const ClassroomDetail = () => {
 
                           setUploading(true)
                           try {
-                            // toast.info('Generating upload URL...')
+                            toast.info('Generating upload URL...')
 
-                            // const urlResponse = await api.post(
-                            //   `/classrooms/${id}/resources/generate-upload-url`,
-                            //   { filename: file.name, file_size: file.size }
-                            // )
-                            // console.log("urlResponse", urlResponse)
-                            // const urlData = urlResponse.data
+                            const urlResponse = await api.post(
+                              `/classrooms/${id}/resources/generate-upload-url`,
+                              { filename: file.name, file_size: file.size }
+                            )
+                            const urlData = urlResponse.data
 
                             toast.info('Uploading to Supabase...')
-                            const filePath = `public/${Date.now()}-${file.name}`;
-
 
                             const { error: uploadError } = await supabase.storage
                               .from('resources')
-                              .upload(filePath, file, {
+                              .upload(urlData.file_path, file, {
                                 contentType: 'application/pdf'
                               });
 
@@ -343,7 +363,7 @@ const ClassroomDetail = () => {
                             await api.post(`/classrooms/${id}/resources`, {
                               filename: file.name,
                               file_size: file.size,
-                              file_path: file.name + "_" + file.size
+                              file_path: urlData.file_path
                             })
 
                             toast.success('Resource uploaded and indexing started!')
@@ -438,10 +458,106 @@ const ClassroomDetail = () => {
             )}
 
             {activeTab === 'chat' && (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Chat with Resources</h2>
-                <div className="bg-gray-50 rounded-lg p-4 h-96 flex items-center justify-center">
-                  <p className="text-gray-500">Chat interface coming soon...</p>
+              <div className="h-[500px] flex flex-col" style={{ background: '#0d0d0d', borderRadius: '14px', overflow: 'hidden' }}>
+                <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', background: '#0d0d0d' }}>
+                  <h2 className="text-lg font-semibold" style={{ color: '#f0f0f0' }}>Chat with Resources</h2>
+                  <p className="text-sm" style={{ color: '#888888' }}>Ask questions about your uploaded documents</p>
+                </div>
+                
+                <div style={{ flex: 1, overflow: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {chatMessages.length === 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#444444' }}>
+                      <div style={{ fontSize: '3rem', opacity: 0.4 }}>📄</div>
+                      <p style={{ marginTop: '16px' }}>Ask questions about your uploaded resources</p>
+                      <p style={{ fontSize: '0.85rem', marginTop: '8px' }}>The AI will answer based on your PDFs</p>
+                    </div>
+                  )}
+                  
+                  {chatMessages.map((msg, idx) => (
+                    <div key={idx} style={{ 
+                      display: 'flex', 
+                      justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                      animation: 'msgIn 0.25s ease'
+                    }}>
+                      <div style={{ 
+                        maxWidth: '65%', 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start'
+                      }}>
+                        {msg.role === 'assistant' && (
+                          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#444444', marginBottom: '3px', paddingLeft: '4px' }}>AI</span>
+                        )}
+                        <div style={{ 
+                          padding: '10px 15px', 
+                          borderRadius: '18px', 
+                          fontSize: '0.9rem', 
+                          lineHeight: 1.5,
+                          wordBreak: 'break-word',
+                          whiteSpace: 'pre-wrap',
+                          ...(msg.role === 'user' 
+                            ? { background: '#ffffff', color: '#000000', borderBottomRightRadius: '4px', boxShadow: '0 4px 16px rgba(255,255,255,0.08)' }
+                            : { background: '#1c1c1c', color: '#f0f0f0', borderBottomLeftRadius: '4px', border: '1px solid rgba(255,255,255,0.08)' }
+                          )
+                        }}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {chatLoading && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                      <div style={{ background: '#1c1c1c', padding: '10px 15px', borderRadius: '18px', borderBottomLeftRadius: '4px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <span style={{ color: '#888888' }}>Thinking...</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.08)', background: '#0d0d0d' }}>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', padding: '8px 12px 8px 18px' }}>
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !chatLoading) sendChatMessage() }}
+                      placeholder="Ask a question about your resources..."
+                      disabled={chatLoading}
+                      style={{ 
+                        flex: 1, 
+                        background: 'none', 
+                        border: 'none', 
+                        outline: 'none', 
+                        color: '#f0f0f0', 
+                        fontFamily: "'DM Sans', sans-serif", 
+                        fontSize: '0.9rem' 
+                      }}
+                    />
+                    <button 
+                      onClick={sendChatMessage}
+                      disabled={chatLoading || !chatInput.trim()}
+                      style={{ 
+                        width: '36px', 
+                        height: '36px', 
+                        borderRadius: '10px', 
+                        border: 'none', 
+                        background: chatInput.trim() ? '#ffffff' : '#333333', 
+                        color: '#000000', 
+                        cursor: chatInput.trim() ? 'pointer' : 'not-allowed',
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        transition: 'background 0.2s, transform 0.15s',
+                        flexShrink: 0
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

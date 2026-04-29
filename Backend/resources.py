@@ -97,15 +97,14 @@ async def generate_upload_url(
         )
 
     try:
-        file_path = f"classrooms/{classroom_id}/{classroom_id}_{request.filename}"
+        import time
+        timestamp = int(time.time() * 1000)
+        file_path = f"public/{timestamp}-{request.filename}"
         
-        # presigned_data = supabase.storage.from_(BUCKET_NAME).create_signed_url(
-        #     file_path,
-        #     expires_in=3600
-        # )
+        public_url = f"{os.getenv('SUPABASE_URL')}/storage/v1/object/public/{BUCKET_NAME}/{file_path}"
         
         return {
-            "upload_url": presigned_data["signedURL"],
+            "upload_url": public_url,
             "file_path": file_path
         }
     except Exception as e:
@@ -129,8 +128,8 @@ async def create_resource(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF files are allowed")
 
     supabase = get_supabase_client()
-    public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(request.file_path)
-    full_url = f"{os.getenv('SUPABASE_URL')}/storage/v1/object/public/{BUCKET_NAME}/{request.file_path}"
+    supabase_url = os.getenv("SUPABASE_URL")
+    full_url = f"{supabase_url}/storage/v1/object/public/{BUCKET_NAME}/{request.file_path}"
 
     resource = Resource(
         classroom_id=classroom_id,
