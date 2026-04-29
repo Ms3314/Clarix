@@ -7,6 +7,7 @@ import chromadb
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
+load_dotenv()  # Also try loading from current directory
 
 
 def get_embeddings():

@@ -48,8 +48,13 @@ def search_similar(query: str, collection_name: str = "clarix_docs", n_results: 
     """Search for similar documents using LangChain Chroma."""
     from .chroma_client import get_vectorstore
 
+    print(f"\n[SEARCH] Query: {query}")
+    print(f"[SEARCH] Collection: {collection_name}, n_results: {n_results}")
+
     vectorstore = get_vectorstore(collection_name)
     docs = vectorstore.similarity_search_with_score(query, k=n_results)
+
+    print(f"[SEARCH] Found {len(docs)} results")
 
     return {
         "documents": [doc.page_content for doc in docs],
