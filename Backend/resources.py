@@ -177,6 +177,48 @@ async def list_resources(
 
     return {"resources": [get_resource_response(r) for r in resources]}
 
+@router.get("/{classroom_id}/chat/history")
+async def get_chat_history(
+    classroom_id: int,
+    user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
+
+    if user.role == "teacher" and classroom.teacher_id != user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    elif user.role == "student":
+        from Backend.models import Enrollment
+        enrollment = db.query(Enrollment).filter(
+            Enrollment.user_id == user.id,
+            Enrollment.classroom_id == classroom_id
+        ).first()
+        if not enrollment:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    from Backend.models import ChatSession, ChatMessage
+    
+    session = db.query(ChatSession).filter(
+        ChatSession.classroom_id == classroom_id,
+        ChatSession.user_id == user.id
+    ).first()
+    
+    if not session:
+        return {"messages": []}
+    
+    messages = db.query(ChatMessage).filter(
+        ChatMessage.session_id == session.id
+    ).order_by(ChatMessage.created_at).all()
+    
+    return {
+        "messages": [
+            {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat() if m.created_at else None}
+            for m in messages
+        ]
+    }
+
 @router.post("/{classroom_id}/chat")
 async def chat_with_resources(
     classroom_id: int,
@@ -199,7 +241,36 @@ async def chat_with_resources(
         if not enrollment:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
+    from Backend.models import ChatSession, ChatMessage
+    
+    session = db.query(ChatSession).filter(
+        ChatSession.classroom_id == classroom_id,
+        ChatSession.user_id == user.id
+    ).first()
+    
+    if not session:
+        session = ChatSession(classroom_id=classroom_id, user_id=user.id)
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+    
+    user_message = ChatMessage(
+        session_id=session.id,
+        role='user',
+        content=request.query
+    )
+    db.add(user_message)
+    db.commit()
+    
     response = generate_rag_response(request.query, classroom_id)
+    
+    assistant_message = ChatMessage(
+        session_id=session.id,
+        role='assistant',
+        content=response
+    )
+    db.add(assistant_message)
+    db.commit()
 
     return {"response": response}
 

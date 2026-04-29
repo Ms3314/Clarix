@@ -175,6 +175,15 @@ const ClassroomDetail = () => {
     }
   }
 
+  const fetchChatHistory = async () => {
+    try {
+      const res = await api.get(`/classrooms/${id}/chat/history`)
+      setChatMessages(res.data.messages || [])
+    } catch (error) {
+      console.error('Failed to fetch chat history:', getErrorMessage(error))
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -224,7 +233,10 @@ const ClassroomDetail = () => {
               {['overview', 'students', 'resources', 'chat', 'quizzes', 'flashcards'].map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => setActiveTab(tab)}
+                  onClick={() => {
+                    setActiveTab(tab)
+                    if (tab === 'chat') fetchChatHistory()
+                  }}
                   className={`py-4 px-6 font-medium text-sm ${activeTab === tab
                     ? 'border-b-2 border-blue-500 text-blue-600'
                     : 'text-gray-500 hover:text-gray-700'

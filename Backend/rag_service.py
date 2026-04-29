@@ -105,16 +105,34 @@ def format_context(results):
 def generate_rag_response(query: str, classroom_id: int):
     results = query_resources(query, classroom_id)
     if not results:
-        return "No relevant information found in the classroom resources."
+        return "No relevant information found in the classroom resources. Please upload some PDF resources to the classroom and wait for them to be indexed."
 
     context = format_context(results)
 
-    response = f"""Based on the classroom resources, here's what I found:
+    try:
+        from langchain_openai import ChatOpenAI
+        from langchain_core.prompts import ChatPromptTemplate
+        
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a helpful teaching assistant for a classroom. Use the following context from the classroom's PDF resources to answer the user's question. 
 
-{context}
+Be thorough but concise. If the answer cannot be found in the context provided, clearly state that the information is not available in the uploaded resources.
 
-User Question: {query}
-
-Please provide an answer based on the context above."""
-
-    return response
+Context:
+{context}"""),
+            ("user", "{query}")
+        ])
+        
+        llm = ChatOpenAI(
+            model="gpt-3.5-turbo",
+            temperature=0.7,
+            api_key=os.getenv("OPENAI_API_KEY")
+        )
+        
+        chain = prompt | llm
+        response = chain.invoke({"context": context, "query": query})
+        
+        return response.content
+    except Exception as e:
+        print(f"Error generating LLM response: {e}")
+        return f"I found relevant information but encountered an error generating the response. Here's what I found:\n\n{context}\n\nPlease refer to the documents above for the answer."
