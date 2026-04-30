@@ -1,3 +1,1 @@
-export function Toaster() {
-  return null
-}
+export { Toaster } from "./sonner"

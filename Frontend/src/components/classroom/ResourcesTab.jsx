@@ -1,117 +1,78 @@
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useAuth } from "@/context/AuthContext"
+import FileUploadZone from "@/components/resources/FileUploadZone"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { toast } from "sonner"
+import api from "@/lib/api"
+import { FileText, Trash2, CheckCircle, Clock } from "lucide-react"
 
-export const ResourcesTab = ({ 
-  user, 
-  resources, 
-  uploading,
-  editingResourceId,
-  editingFilename,
-  onUploadClick,
-  onStartEdit,
-  onCancelEdit,
-  onSaveEdit,
-  onDelete,
-  onFileChange,
-  onFilenameChange
-}) => {
+export default function ResourcesTab({ classroomId }) {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["resources", classroomId],
+    queryFn: () => api.get(`/classrooms/${classroomId}/resources`).then((r) => r.data.resources),
+  })
+
+  async function handleDelete(resourceId) {
+    try {
+      await api.delete(`/classrooms/${classroomId}/resources/${resourceId}`)
+      toast.success("Resource deleted")
+      queryClient.invalidateQueries(["resources", classroomId])
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Delete failed")
+    }
+  }
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold" style={{ color: '#f0f0f0' }}>Resources</h2>
-        {user?.role === 'teacher' && (
-          <div className="flex gap-2">
-            <input
-              type="file"
-              id="resource-upload"
-              accept=".pdf"
-              className="hidden"
-              disabled={uploading}
-              onChange={onFileChange}
-            />
-            <Button
-              onClick={() => document.getElementById('resource-upload').click()}
-              disabled={uploading}
-              style={{ background: '#ffffff', color: '#000000' }}
-            >
-              {uploading ? 'Uploading...' : 'Upload Resource'}
-            </Button>
+    <div className="space-y-6">
+      {user?.role === "teacher" && (
+        <div>
+          <h3 className="text-sm font-medium text-gray-700 mb-3">Upload Resource</h3>
+          <FileUploadZone classroomId={classroomId} />
+        </div>
+      )}
+
+      <div>
+        <h3 className="text-sm font-medium text-gray-700 mb-3">
+          Resources ({data?.length ?? 0})
+        </h3>
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2].map((i) => <div key={i} className="h-14 bg-gray-100 animate-pulse rounded-lg" />)}
+          </div>
+        ) : data?.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-8">No resources uploaded yet</p>
+        ) : (
+          <div className="space-y-2">
+            {data.map((r) => (
+              <div key={r.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-white">
+                <FileText className="h-5 w-5 text-red-500 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{r.filename}</p>
+                  <p className="text-xs text-gray-400">
+                    {(r.file_size / 1024 / 1024).toFixed(1)} MB
+                  </p>
+                </div>
+                <Badge variant={r.indexed ? "default" : "secondary"} className="shrink-0">
+                  {r.indexed ? (
+                    <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Indexed</span>
+                  ) : (
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Pending</span>
+                  )}
+                </Badge>
+                {user?.role === "teacher" && (
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)} className="shrink-0 text-gray-400 hover:text-red-500">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
-      
-      {resources.length === 0 ? (
-        <p style={{ color: '#666666' }}>No resources uploaded yet.</p>
-      ) : (
-        <div className="space-y-4">
-          {resources.map((resource) => (
-            <Card key={resource.id} style={{ background: '#1a1a1a', border: '1px solid #333333' }}>
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-center">
-                  <div className="flex-1">
-                    {editingResourceId === resource.id ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={editingFilename}
-                          onChange={(e) => onFilenameChange(e.target.value)}
-                          className="px-2 py-1 rounded text-sm"
-                          style={{ 
-                            background: '#0d0d0d', 
-                            border: '1px solid #444444', 
-                            color: '#f0f0f0'
-                          }}
-                          autoFocus
-                        />
-                        <Button size="sm" onClick={() => onSaveEdit(resource.id)} style={{ background: '#ffffff', color: '#000000' }}>
-                          Save
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={onCancelEdit} style={{ borderColor: '#444444', color: '#f0f0f0' }}>
-                          Cancel
-                        </Button>
-                      </div>
-                    ) : (
-                      <div>
-                        <a
-                          href={resource.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium cursor-pointer"
-                          style={{ color: '#ffffff' }}
-                        >
-                          {resource.filename}
-                        </a>
-                        <p className="text-sm" style={{ color: '#666666' }}>
-                          {resource.indexed ? 'Indexed' : 'Processing...'}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  {user?.role === 'teacher' && editingResourceId !== resource.id && (
-                    <div className="flex items-center gap-2 ml-4">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => onStartEdit(resource)}
-                        style={{ borderColor: '#444444', color: '#f0f0f0' }}
-                      >
-                        Edit
-                      </Button>
-                      <Button 
-                        variant="destructive" 
-                        size="sm" 
-                        onClick={() => onDelete(resource.id)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
     </div>
   )
 }

@@ -1,6 +1,0 @@
-export { ClassroomNav, ClassroomHeader } from './ClassroomNav'
-export { ClassroomTabs } from './ClassroomTabs'
-export { OverviewTab } from './OverviewTab'
-export { StudentsTab } from './StudentsTab'
-export { ResourcesTab } from './ResourcesTab'
-export { QuizzesTab, FlashcardsTab } from './ComingSoonTabs'

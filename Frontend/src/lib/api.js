@@ -1,34 +1,25 @@
-import axios from 'axios';
+import axios from "axios"
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000',
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+  baseURL: "http://localhost:8000",
+})
 
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('clarix_token'); // ✅ changed
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+// Attach JWT from localStorage on every request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("clarix_token")
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
 
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('clarix_token'); // ✅ clear token on 401
-      window.location.href = '/';
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401 && !window.location.pathname.includes("/login")) {
+      localStorage.removeItem("clarix_token")
+      window.location.href = "/login"
     }
-    return Promise.reject(error);
+    return Promise.reject(err)
   }
-);
+)
 
-export default api;
+export default api
