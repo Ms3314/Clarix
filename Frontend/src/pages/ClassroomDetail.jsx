@@ -48,6 +48,10 @@ const ClassroomDetail = () => {
   const [chatMessages, setChatMessages] = useState([])
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
+  const [announcements, setAnnouncements] = useState([])
+  const [announcementTitle, setAnnouncementTitle] = useState('')
+  const [announcementContent, setAnnouncementContent] = useState('')
+  const [announcementPosting, setAnnouncementPosting] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -63,6 +67,7 @@ const ClassroomDetail = () => {
       setUser(userRes.data)
       setClassroom(classroomRes.data)
 
+      fetchAnnouncements()
       if (userRes.data.role === 'teacher') {
         fetchStudents()
         fetchResources()
@@ -78,6 +83,43 @@ const ClassroomDetail = () => {
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchAnnouncements = async () => {
+    try {
+      const res = await api.get(`/classrooms/${id}/announcements`)
+      setAnnouncements(res.data.announcements || [])
+    } catch (error) {
+      console.error('Failed to fetch announcements:', getErrorMessage(error))
+    }
+  }
+
+  const handlePostAnnouncement = async (e) => {
+    e.preventDefault()
+    if (!announcementTitle.trim() || !announcementContent.trim()) return
+    setAnnouncementPosting(true)
+    try {
+      await api.post(`/classrooms/${id}/announcements`, {
+        title: announcementTitle,
+        content: announcementContent
+      })
+      setAnnouncementTitle('')
+      setAnnouncementContent('')
+      fetchAnnouncements()
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    } finally {
+      setAnnouncementPosting(false)
+    }
+  }
+
+  const handleDeleteAnnouncement = async (announcementId) => {
+    try {
+      await api.delete(`/classrooms/${id}/announcements/${announcementId}`)
+      fetchAnnouncements()
+    } catch (error) {
+      toast.error(getErrorMessage(error))
     }
   }
 
@@ -278,6 +320,72 @@ const ClassroomDetail = () => {
                     </CardHeader>
                   </Card>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'announcements' && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4" style={{ color: '#f0f0f0' }}>Announcements</h2>
+
+                {user?.role === 'teacher' && (
+                  <form onSubmit={handlePostAnnouncement} className="mb-6 p-4 rounded-lg space-y-3" style={{ background: '#1a1a1a', border: '1px solid #333333' }}>
+                    <h3 className="text-sm font-medium" style={{ color: '#888888' }}>Post an Announcement</h3>
+                    <input
+                      type="text"
+                      value={announcementTitle}
+                      onChange={(e) => setAnnouncementTitle(e.target.value)}
+                      placeholder="Title"
+                      required
+                      className="w-full px-3 py-2 rounded-md text-sm"
+                      style={{ background: '#0d0d0d', border: '1px solid #444444', color: '#f0f0f0' }}
+                    />
+                    <textarea
+                      value={announcementContent}
+                      onChange={(e) => setAnnouncementContent(e.target.value)}
+                      placeholder="Write your announcement..."
+                      required
+                      rows={3}
+                      className="w-full px-3 py-2 rounded-md text-sm resize-none"
+                      style={{ background: '#0d0d0d', border: '1px solid #444444', color: '#f0f0f0' }}
+                    />
+                    <Button type="submit" disabled={announcementPosting} style={{ background: '#ffffff', color: '#000000' }}>
+                      {announcementPosting ? 'Posting...' : 'Post Announcement'}
+                    </Button>
+                  </form>
+                )}
+
+                {announcements.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p style={{ color: '#666666' }}>No announcements yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {announcements.map((a) => (
+                      <div key={a.id} className="p-4 rounded-lg" style={{ background: '#1a1a1a', border: '1px solid #333333' }}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <p className="font-semibold text-sm" style={{ color: '#f0f0f0' }}>{a.title}</p>
+                            <p className="text-xs mt-0.5" style={{ color: '#666666' }}>
+                              {a.teacher_name} &middot; {new Date(a.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                            </p>
+                            <p className="text-sm mt-2 whitespace-pre-wrap" style={{ color: '#cccccc' }}>{a.content}</p>
+                          </div>
+                          {user?.role === 'teacher' && (
+                            <button
+                              onClick={() => handleDeleteAnnouncement(a.id)}
+                              className="text-xs shrink-0 mt-0.5"
+                              style={{ color: '#666666' }}
+                              onMouseEnter={e => e.target.style.color = '#ff4444'}
+                              onMouseLeave={e => e.target.style.color = '#666666'}
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

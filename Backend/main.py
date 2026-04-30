@@ -32,12 +32,14 @@ from Backend.classroom import router as classroom_router
 from Backend.resources import router as resources_router
 from Backend.quiz import router as quiz_router
 from Backend.flashcard import router as flashcard_router
+from Backend.announcements import router as announcements_router
 
 app.include_router(auth.router)
 app.include_router(classroom_router)
 app.include_router(resources_router)
 app.include_router(quiz_router)
 app.include_router(flashcard_router)
+app.include_router(announcements_router)
 
 # Connection Manager with ROOM support (kept for potential WebSocket features)
 class ConnectionManager:

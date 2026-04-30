@@ -6,7 +6,7 @@ export const ClassroomTabs = ({ activeTab, onTabChange, onChatTabClick, user }) 
     }
   }
 
-  const allTabs = ['overview', 'students', 'resources', 'chat', 'quizzes', 'flashcards']
+  const allTabs = ['overview', 'announcements', 'students', 'resources', 'chat', 'quizzes', 'flashcards']
   const visibleTabs = user?.role === 'teacher' 
     ? allTabs 
     : allTabs.filter(tab => tab !== 'students')
