@@ -1,64 +1,58 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Annotated, List
+from typing import Annotated
 from pydantic import BaseModel
-from Backend.auth import get_current_teacher, get_current_student, get_current_user
+from Backend.auth import get_current_teacher, get_current_user
 from Backend.models import Users, Classroom, Resource
-from Backend.Database import SessionLocal
+from Backend.Database import get_db
 from Backend.rag_service import index_resource_from_url, generate_rag_response
 import os
 from datetime import datetime
-from Backend.Database import get_db
 
 router = APIRouter(
     prefix="/classrooms",
     tags=["resources"]
 )
 
-db_dependency = Annotated[Session, Depends(get_db)]
-
 BUCKET_NAME = "resources"
 
 _supabase_client = None
+
 
 def get_supabase_client():
     global _supabase_client
     if _supabase_client is not None:
         return _supabase_client
-    
-    from supabase import create_client, Client
+
+    from supabase import create_client
     url = os.getenv("SUPABASE_URL")
     key = os.getenv("SUPABASE_SERVICE_KEY")
-    
-    if not url or not key or url == "https://your-project.supabase.co":
+
+    if not url or not key or "your-project" in url:
         return None
-    
+
     _supabase_client = create_client(url, key)
     return _supabase_client
 
-class ResourceResponse(BaseModel):
-    id: int
-    filename: str
-    file_size: int
-    indexed: bool
-    created_at: datetime
-    file_url: str = None
-
-class ChatRequest(BaseModel):
-    query: str
-
-class ChatResponse(BaseModel):
-    response: str
-    sources: list
 
 class UploadUrlRequest(BaseModel):
     filename: str
     file_size: int
 
+
 class CreateResourceRequest(BaseModel):
     filename: str
     file_size: int
     file_path: str
+
+
+class ChatRequest(BaseModel):
+    query: str
+
+
+class UpdateResourceRequest(BaseModel):
+    filename: str
+
 
 def get_resource_response(resource: Resource):
     return {
@@ -68,8 +62,9 @@ def get_resource_response(resource: Resource):
         "indexed": resource.indexed,
         "created_at": resource.created_at,
         "classroom_id": resource.classroom_id,
-        "file_url": resource.file_path
+        "file_url": resource.file_path,
     }
+
 
 @router.post("/{classroom_id}/resources/generate-upload-url")
 async def generate_upload_url(
@@ -78,7 +73,6 @@ async def generate_upload_url(
     teacher: Users = Depends(get_current_teacher),
     db: Session = Depends(get_db)
 ):
-    print("are u fine brooo????")
     classroom = db.query(Classroom).filter(
         Classroom.id == classroom_id,
         Classroom.teacher_id == teacher.id
@@ -86,29 +80,23 @@ async def generate_upload_url(
     if not classroom:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
 
-    if not request.filename.endswith('.pdf'):
+    if not request.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF files are allowed")
 
-    supabase = get_supabase_client()
-    if not supabase:
+    supabase_url = os.getenv("SUPABASE_URL")
+    if not supabase_url or "your-project" in supabase_url:
         raise HTTPException(
-            status_code=503, 
-            detail="Supabase storage not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_KEY in .env"
+            status_code=503,
+            detail="Supabase storage not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY in .env"
         )
 
-    try:
-        import time
-        timestamp = int(time.time() * 1000)
-        file_path = f"public/{timestamp}-{request.filename}"
-        
-        public_url = f"{os.getenv('SUPABASE_URL')}/storage/v1/object/public/{BUCKET_NAME}/{file_path}"
-        
-        return {
-            "upload_url": public_url,
-            "file_path": file_path
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate upload URL {e}:  {str(e)}")
+    import time
+    timestamp = int(time.time() * 1000)
+    file_path = f"public/{timestamp}-{request.filename}"
+    upload_url = f"{supabase_url}/storage/v1/object/{BUCKET_NAME}/{file_path}"
+
+    return {"upload_url": upload_url, "file_path": file_path}
+
 
 @router.post("/{classroom_id}/resources")
 async def create_resource(
@@ -124,10 +112,9 @@ async def create_resource(
     if not classroom:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
 
-    if not request.filename.endswith('.pdf'):
+    if not request.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF files are allowed")
 
-    supabase = get_supabase_client()
     supabase_url = os.getenv("SUPABASE_URL")
     full_url = f"{supabase_url}/storage/v1/object/public/{BUCKET_NAME}/{request.file_path}"
 
@@ -142,6 +129,7 @@ async def create_resource(
     db.commit()
     db.refresh(resource)
 
+    # Download from Supabase → detect handwriting → OCR or text extract → index in Chroma
     indexed = index_resource_from_url(full_url, classroom_id, resource.id)
     resource.indexed = indexed
     resource.indexed_at = datetime.utcnow() if indexed else None
@@ -151,6 +139,7 @@ async def create_resource(
         "message": "Resource uploaded successfully",
         "resource": get_resource_response(resource)
     }
+
 
 @router.get("/{classroom_id}/resources")
 async def list_resources(
@@ -174,8 +163,8 @@ async def list_resources(
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     resources = db.query(Resource).filter(Resource.classroom_id == classroom_id).all()
-
     return {"resources": [get_resource_response(r) for r in resources]}
+
 
 @router.get("/{classroom_id}/chat/history")
 async def get_chat_history(
@@ -198,26 +187,8 @@ async def get_chat_history(
         if not enrollment:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
-    from Backend.models import ChatSession, ChatMessage
-    
-    session = db.query(ChatSession).filter(
-        ChatSession.classroom_id == classroom_id,
-        ChatSession.user_id == user.id
-    ).first()
-    
-    if not session:
-        return {"messages": []}
-    
-    messages = db.query(ChatMessage).filter(
-        ChatMessage.session_id == session.id
-    ).order_by(ChatMessage.created_at).all()
-    
-    return {
-        "messages": [
-            {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat() if m.created_at else None}
-            for m in messages
-        ]
-    }
+    return {"messages": []}
+
 
 @router.post("/{classroom_id}/chat")
 async def chat_with_resources(
@@ -241,38 +212,9 @@ async def chat_with_resources(
         if not enrollment:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
-    from Backend.models import ChatSession, ChatMessage
-    
-    session = db.query(ChatSession).filter(
-        ChatSession.classroom_id == classroom_id,
-        ChatSession.user_id == user.id
-    ).first()
-    
-    if not session:
-        session = ChatSession(classroom_id=classroom_id, user_id=user.id)
-        db.add(session)
-        db.commit()
-        db.refresh(session)
-    
-    user_message = ChatMessage(
-        session_id=session.id,
-        role='user',
-        content=request.query
-    )
-    db.add(user_message)
-    db.commit()
-    
     response = generate_rag_response(request.query, classroom_id)
-    
-    assistant_message = ChatMessage(
-        session_id=session.id,
-        role='assistant',
-        content=response
-    )
-    db.add(assistant_message)
-    db.commit()
-
     return {"response": response}
+
 
 @router.delete("/{classroom_id}/resources/{resource_id}")
 async def delete_resource(
@@ -297,18 +239,19 @@ async def delete_resource(
 
     try:
         supabase = get_supabase_client()
-        file_path = resource.file_path.split("/object/public/")[-1]
-        supabase.storage.from_(BUCKET_NAME).remove([file_path])
+        if supabase and resource.file_path:
+            # Extract the storage path from the full public URL
+            marker = f"/object/public/{BUCKET_NAME}/"
+            if marker in resource.file_path:
+                storage_path = resource.file_path.split(marker)[-1]
+                supabase.storage.from_(BUCKET_NAME).remove([storage_path])
     except Exception as e:
-        print(f"Failed to delete from Supabase: {e}")
+        print(f"[Resources] Failed to delete from Supabase: {e}")
 
     db.delete(resource)
     db.commit()
-
     return {"message": "Resource deleted successfully"}
 
-class UpdateResourceRequest(BaseModel):
-    filename: str
 
 @router.put("/{classroom_id}/resources/{resource_id}")
 async def update_resource(
