@@ -22,6 +22,7 @@ class Users(Base):
     quiz_attempts = relationship("QuizAttempt", back_populates="student")
     flashcards_created = relationship("Flashcard", back_populates="creator")
     quizzes_created = relationship("Quiz", back_populates="creator")
+    announcements_made = relationship("Announcement", back_populates="teacher")
 
 class Classroom(Base):
     __tablename__ = 'classrooms'
@@ -39,6 +40,7 @@ class Classroom(Base):
     resources = relationship("Resource", back_populates="classroom", cascade="all, delete-orphan")
     quizzes = relationship("Quiz", back_populates="classroom", cascade="all, delete-orphan")
     flashcards = relationship("Flashcard", back_populates="classroom", cascade="all, delete-orphan")
+    announcements = relationship("Announcement", back_populates="classroom", cascade="all, delete-orphan")
 
 class Enrollment(Base):
     __tablename__ = 'enrollments'
@@ -126,12 +128,26 @@ class Flashcard(Base):
     classroom = relationship("Classroom", back_populates="flashcards")
     creator = relationship("Users", back_populates="flashcards_created")
 
+class Announcement(Base):
+    __tablename__ = 'announcements'
+
+    id = Column(Integer, primary_key=True, index=True)
+    classroom_id = Column(Integer, ForeignKey('classrooms.id'), nullable=False)
+    teacher_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    classroom = relationship("Classroom", back_populates="announcements")
+    teacher = relationship("Users", back_populates="announcements_made")
+
 class ChatSession(Base):
     __tablename__ = 'chat_sessions'
 
     id = Column(Integer, primary_key=True, index=True)
     classroom_id = Column(Integer, ForeignKey('classrooms.id'), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    title = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships

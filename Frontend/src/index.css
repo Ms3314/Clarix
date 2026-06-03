@@ -1,14 +1,47 @@
 @import "tailwindcss";
 
+@theme {
+  --color-background: #faf8f6;
+  --color-foreground: #1c1b1a;
+  --color-card: #ffffff;
+  --color-card-foreground: #1c1b1a;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #1c1b1a;
+  --color-primary: #4a7c59;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #f5f1ec;
+  --color-secondary-foreground: #1c1b1a;
+  --color-muted: #f5f1ec;
+  --color-muted-foreground: #6b6a68;
+  --color-accent: #f5f1ec;
+  --color-accent-foreground: #1c1b1a;
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #e8e4e0;
+  --color-input: #d4d0cc;
+  --color-ring: #4a7c59;
+  --radius: 0.5rem;
+  --color-sidebar: #faf8f6;
+  --color-sidebar-foreground: #1c1b1a;
+  --color-sidebar-primary: #4a7c59;
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: #f0eae3;
+  --color-sidebar-accent-foreground: #1c1b1a;
+  --color-sidebar-border: #e8e4e0;
+  --color-sidebar-ring: #4a7c59;
+}
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color-scheme: light dark;
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color: #1c1b1a;
+  background-color: #faf8f6;
 }
 
 body {

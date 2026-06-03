@@ -6,6 +6,7 @@ from Backend import models, auth
 from Backend.Database import engine, SessionLocal
 from typing import Annotated
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 import os
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -32,12 +33,14 @@ from Backend.classroom import router as classroom_router
 from Backend.resources import router as resources_router
 from Backend.quiz import router as quiz_router
 from Backend.flashcard import router as flashcard_router
+from Backend.announcements import router as announcements_router
 
 app.include_router(auth.router)
 app.include_router(classroom_router)
 app.include_router(resources_router)
 app.include_router(quiz_router)
 app.include_router(flashcard_router)
+app.include_router(announcements_router)
 
 # Connection Manager with ROOM support (kept for potential WebSocket features)
 class ConnectionManager:
@@ -108,6 +111,19 @@ async def websocket_endpoint(websocket: WebSocket, room: str, username: str):
 @app.on_event("startup")
 async def startup_event():
     models.Base.metadata.create_all(bind=engine)
+
+    # Add title column to chat_sessions if missing (idempotent migration)
+    try:
+        from sqlalchemy import inspect
+        inspector = inspect(engine)
+        columns = [c['name'] for c in inspector.get_columns('chat_sessions')]
+        if 'title' not in columns:
+            with engine.connect() as conn:
+                conn.exec_driver_sql("ALTER TABLE chat_sessions ADD COLUMN title VARCHAR")
+                conn.commit()
+            print("[Startup] Added title column to chat_sessions")
+    except Exception as e:
+        print(f"[Startup] Migration note: {e}")
 
 def get_db():
     db = SessionLocal()

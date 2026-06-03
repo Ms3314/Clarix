@@ -1,33 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import {
+  ArrowLeft, Edit3, Folder, HelpCircle, Users, Sparkles, Megaphone, CheckSquare,
+  Plus, Trash2, FileText, Sigma, FlaskConical, Scroll,
+} from 'lucide-react'
 import api from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
-import ReactMarkdown from 'react-markdown'
-
-import { 
-  ClassroomNav, 
-  ClassroomHeader, 
-  ClassroomTabs,
-  OverviewTab,
-  StudentsTab,
-  ResourcesTab,
-  QuizzesTab,
-  FlashcardsTab
-} from '@/components/classroom'
-import ChatTab from '@/components/chat/ChatTab'
-
-const getErrorMessage = (error) => {
-  if (!error.response) return error.message || 'Network error'
-  const detail = error.response.data?.detail
-  if (Array.isArray(detail)) {
-    return detail.map(d => d.msg || d).join(', ')
-  }
-  if (typeof detail === 'object') return detail.msg || JSON.stringify(detail)
-  return detail || 'An error occurred'
-}
 
 const ClassroomDetail = () => {
   const { id } = useParams()
@@ -35,600 +14,800 @@ const ClassroomDetail = () => {
   const [classroom, setClassroom] = useState(null)
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState('Overview')
   const [students, setStudents] = useState([])
   const [resources, setResources] = useState([])
   const [quizzes, setQuizzes] = useState([])
-  const [flashcards, setFlashcards] = useState([])
-  const [inviteEmail, setInviteEmail] = useState('')
+  const [announcements, setAnnouncements] = useState([])
+
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState('')
+
+  const [announcementMsg, setAnnouncementMsg] = useState('')
+  const [announcementPosting, setAnnouncementPosting] = useState(false)
+
+  const [studentName, setStudentName] = useState('')
+  const [studentEmail, setStudentEmail] = useState('')
   const [inviteLoading, setInviteLoading] = useState(false)
+
   const [uploading, setUploading] = useState(false)
-  const [editingResourceId, setEditingResourceId] = useState(null)
-  const [editingFilename, setEditingFilename] = useState('')
-  const [chatMessages, setChatMessages] = useState([])
-  const [chatInput, setChatInput] = useState('')
-  const [chatLoading, setChatLoading] = useState(false)
+  const [resourceFile, setResourceFile] = useState(null)
+
+  const [quizTitle, setQuizTitle] = useState('')
+  const [quizQuestions, setQuizQuestions] = useState(5)
+  const [quizCreating, setQuizCreating] = useState(false)
+
+  const [generatingAI, setGeneratingAI] = useState(false)
+  const [aiMaterial, setAiMaterial] = useState(null)
+  const [showAIModal, setShowAIModal] = useState(false)
 
   useEffect(() => {
-    fetchData()
+    fetchAll()
   }, [id])
 
-  const fetchData = async () => {
+  const fetchAll = async () => {
+    setLoading(true)
     try {
-      const [userRes, classroomRes] = await Promise.all([
+      const [userRes, classRes] = await Promise.all([
         api.get('/auth/me'),
-        api.get(`/classrooms/${id}`)
+        api.get(`/classrooms/${id}`),
       ])
-
       setUser(userRes.data)
-      setClassroom(classroomRes.data)
+      const cls = { ...classRes.data, icon: classRes.data.icon || 'sigma' }
+      setClassroom(cls)
+      setEditName(cls.name)
 
-      if (userRes.data.role === 'teacher') {
-        fetchStudents()
-        fetchResources()
-        fetchQuizzes()
-        fetchFlashcards()
-      } else {
-        fetchResources()
-      }
+      await Promise.all([
+        fetchStudents(cls),
+        fetchResources(cls),
+        fetchQuizzes(cls),
+        fetchAnnouncements(cls),
+      ])
     } catch (error) {
-      toast.error(getErrorMessage(error))
-      if (error.response?.status === 401) {
-        navigate('/')
-      }
+      toast.error('Failed to load classroom')
+      if (error.response?.status === 401) navigate('/')
     } finally {
       setLoading(false)
     }
   }
 
-  const fetchStudents = async () => {
+  const fetchStudents = async (cls) => {
     try {
-      const res = await api.get(`/classrooms/${id}/students`)
+      const res = await api.get(`/classrooms/${cls.id}/students`)
       setStudents(res.data.students || [])
-    } catch (error) {
-      console.error('Failed to fetch students:', getErrorMessage(error))
-    }
+    } catch { setStudents([]) }
   }
 
-  const fetchResources = async () => {
+  const fetchResources = async (cls) => {
     try {
-      const res = await api.get(`/classrooms/${id}/resources`)
+      const res = await api.get(`/classrooms/${cls.id}/resources`)
       setResources(res.data.resources || [])
-    } catch (error) {
-      console.error('Failed to fetch resources:', getErrorMessage(error))
-    }
+    } catch { setResources([]) }
   }
 
-  const fetchQuizzes = async () => {
+  const fetchQuizzes = async (cls) => {
     try {
-      const res = await api.get(`/classrooms/${id}/quizzes`)
+      const res = await api.get(`/classrooms/${cls.id}/quizzes`)
       setQuizzes(res.data.quizzes || [])
-    } catch (error) {
-      console.error('Failed to fetch quizzes:', getErrorMessage(error))
-    }
+    } catch { setQuizzes([]) }
   }
 
-  const fetchFlashcards = async () => {
+  const fetchAnnouncements = async (cls) => {
     try {
-      const res = await api.get(`/classrooms/${id}/flashcards`)
-      setFlashcards(res.data.flashcards || [])
-    } catch (error) {
-      console.error('Failed to fetch flashcards:', getErrorMessage(error))
+      const res = await api.get(`/classrooms/${cls.id}/announcements`)
+      setAnnouncements(res.data.announcements || [])
+    } catch { setAnnouncements([]) }
+  }
+
+  const saveEditedName = async (e) => {
+    e.preventDefault()
+    if (!editName.trim()) return
+    try {
+      await api.put(`/classrooms/${id}`, { name: editName })
+      setClassroom((prev) => ({ ...prev, name: editName }))
+      setIsEditing(false)
+      toast.success('Name updated')
+    } catch (err) {
+      toast.error('Failed to update name')
     }
   }
 
-  const handleInviteStudent = async () => {
-    if (!inviteEmail) return
+  const handlePostAnnouncement = async (e) => {
+    e.preventDefault()
+    if (!announcementMsg.trim()) return
+    setAnnouncementPosting(true)
+    try {
+      await api.post(`/classrooms/${id}/announcements`, {
+        title: announcementMsg.slice(0, 50),
+        content: announcementMsg,
+      })
+      toast.success('Announcement posted!')
+      setAnnouncementMsg('')
+      fetchAnnouncements(classroom)
+    } catch (err) {
+      toast.error('Failed to post announcement')
+    } finally {
+      setAnnouncementPosting(false)
+    }
+  }
+
+  const handleDeleteAnnouncement = async (annId) => {
+    try {
+      await api.delete(`/classrooms/${id}/announcements/${annId}`)
+      toast.success('Announcement deleted')
+      fetchAnnouncements(classroom)
+    } catch {
+      toast.error('Failed to delete')
+    }
+  }
+
+  const handleInviteStudent = async (e) => {
+    e.preventDefault()
+    if (!studentEmail.trim()) return
     setInviteLoading(true)
     try {
-      await api.post(`/classrooms/${id}/invite`, { email: inviteEmail })
-      toast.success('Student invited successfully!')
-      setInviteEmail('')
-      fetchStudents()
-    } catch (error) {
-      toast.error(getErrorMessage(error))
+      await api.post(`/classrooms/${id}/invite`, { email: studentEmail.trim() })
+      toast.success('Student invited!')
+      setStudentEmail('')
+      setStudentName('')
+      fetchStudents(classroom)
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to invite')
     } finally {
       setInviteLoading(false)
+    }
+  }
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      toast.error('Only PDF files are allowed')
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File must be under 10MB')
+      return
+    }
+
+    setUploading(true)
+    try {
+      const { data: urlData } = await api.post(`/classrooms/${id}/resources/generate-upload-url`, {
+        filename: file.name,
+        file_size: file.size,
+      })
+
+      const { upload_url: uploadUrl, file_path: filePath } = urlData
+
+      const { error: uploadError } = await supabase.storage
+        .from('classroom-resources')
+        .upload(filePath, file, {
+          contentType: 'application/pdf',
+          upsert: false,
+        })
+
+      if (uploadError) throw uploadError
+
+      await api.post(`/classrooms/${id}/resources`, {
+        filename: file.name,
+        file_size: file.size,
+        file_path: filePath,
+      })
+
+      toast.success('Resource uploaded successfully!')
+      fetchResources(classroom)
+    } catch (err) {
+      toast.error(err.response?.data?.detail || err.message || 'Upload failed')
+    } finally {
+      setUploading(false)
+      setResourceFile(null)
     }
   }
 
   const handleDeleteResource = async (resourceId) => {
     try {
       await api.delete(`/classrooms/${id}/resources/${resourceId}`)
-      toast.success('Resource deleted successfully!')
-      fetchResources()
-    } catch (error) {
-      toast.error(getErrorMessage(error))
+      toast.success('Resource deleted')
+      fetchResources(classroom)
+    } catch {
+      toast.error('Failed to delete')
     }
   }
 
-  const startEditingFilename = (resource) => {
-    setEditingResourceId(resource.id)
-    setEditingFilename(resource.filename)
-  }
-
-  const cancelEditingFilename = () => {
-    setEditingResourceId(null)
-    setEditingFilename('')
-  }
-
-  const saveFilename = async (resourceId) => {
-    if (!editingFilename.trim()) {
-      toast.error('Filename cannot be empty')
-      return
-    }
+  const handleCreateQuiz = async (e) => {
+    e.preventDefault()
+    if (!quizTitle.trim()) return
+    setQuizCreating(true)
     try {
-      await api.put(`/classrooms/${id}/resources/${resourceId}`, {
-        filename: editingFilename.trim()
+      await api.post(`/classrooms/${id}/quizzes`, {
+        title: quizTitle,
+        description: `${quizQuestions} questions`,
+        questions: [],
+        is_ai_generated: false,
       })
-      toast.success('Filename updated successfully!')
-      setEditingResourceId(null)
-      setEditingFilename('')
-      fetchResources()
-    } catch (error) {
-      toast.error(getErrorMessage(error))
-    }
-  }
-
-  const sendChatMessage = async () => {
-    if (!chatInput.trim() || chatLoading) return
-
-    const userMessage = chatInput.trim()
-    setChatInput('')
-    setChatLoading(true)
-
-    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }])
-
-    try {
-      const response = await api.post(`/classrooms/${id}/chat`, { query: userMessage })
-      setChatMessages(prev => [...prev, { role: 'assistant', content: response.data.response }])
-    } catch (error) {
-      toast.error(getErrorMessage(error))
-      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }])
+      toast.success('Quiz created!')
+      setQuizTitle('')
+      fetchQuizzes(classroom)
+    } catch (err) {
+      toast.error('Failed to create quiz')
     } finally {
-      setChatLoading(false)
+      setQuizCreating(false)
     }
   }
 
-  const fetchChatHistory = async () => {
+  const handleGenerateReview = async () => {
+    setGeneratingAI(true)
+    setAiMaterial(null)
     try {
-      const res = await api.get(`/classrooms/${id}/chat/history`)
-      setChatMessages(res.data.messages || [])
-    } catch (error) {
-      console.error('Failed to fetch chat history:', getErrorMessage(error))
+      const res = await api.post(`/classrooms/${id}/chat`, {
+        query: `Generate a comprehensive review sheet for "${classroom.name}" covering all key topics. Include study tips and practice questions.`,
+      })
+      const content = res.data.response || 'No content generated.'
+      setAiMaterial(content)
+      setShowAIModal(true)
+    } catch (err) {
+      toast.error('Failed to generate review')
+    } finally {
+      setGeneratingAI(false)
+    }
+  }
+
+  const saveAIToResources = async () => {
+    if (!aiMaterial) return
+    const blob = new Blob([aiMaterial], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `Review-${classroom.name}-${new Date().toISOString().split('T')[0]}.txt`
+    a.click()
+    toast.success('Review downloaded! Upload it as a PDF resource in the Resources tab.')
+    setShowAIModal(false)
+  }
+
+  const getIcon = (iconName) => {
+    switch (iconName) {
+      case 'sigma': return <Sigma className="w-4 h-4" />
+      case 'flask': return <FlaskConical className="w-4 h-4" />
+      case 'scroll': return <Scroll className="w-4 h-4" />
+      default: return <Sigma className="w-4 h-4" />
     }
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0d0d0d' }}>
-        <div className="text-lg" style={{ color: '#888888' }}>Loading...</div>
+      <div className="flex items-center justify-center p-12 min-h-[60vh]">
+        <div className="text-lg text-zinc-400">Loading classroom...</div>
       </div>
     )
   }
 
   if (!classroom) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0d0d0d' }}>
-        <div className="text-lg" style={{ color: '#888888' }}>Classroom not found</div>
+      <div className="flex items-center justify-center p-12 min-h-[60vh]">
+        <div className="text-lg text-zinc-400">Classroom not found</div>
       </div>
     )
   }
 
+  const tabs = ['Overview', 'Announcements', 'Students', 'Resources', 'Quizzes']
+  const isTeacher = user?.role === 'teacher'
+
   return (
-    <div className="min-h-screen" style={{ background: '#0d0d0d' }}>
-      <nav style={{ background: '#111111', borderBottom: '1px solid #333333' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <button onClick={() => navigate('/dashboard')} className="text-xl font-bold" style={{ color: '#ffffff' }}>
-              ← Back to Dashboard
+    <div className="p-6">
+      <div className="max-w-6xl mx-auto space-y-6 select-none">
+        {/* Top Navigation Row */}
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-zinc-200">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="p-2 border border-[#eae6e1] hover:bg-[#faf7f3] transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
             </button>
-            <div className="flex items-center gap-4">
-              <span className="text-sm" style={{ color: '#888888' }}>
-                {user?.username} ({user?.role})
-              </span>
-            </div>
+
+            {isEditing ? (
+              <form onSubmit={saveEditedName} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="px-3 py-1 text-lg font-serif italic border focus:outline-none bg-white border-zinc-900 text-zinc-900"
+                  autoFocus
+                />
+                <button type="submit" className="px-2.5 py-1 text-xs uppercase tracking-wider font-bold bg-[#1c1b1a] text-white cursor-pointer hover:bg-amber-600 border border-zinc-900">
+                  Save
+                </button>
+                <button type="button" onClick={() => setIsEditing(false)} className="px-2.5 py-1 text-xs uppercase tracking-wider font-bold bg-zinc-500 text-white cursor-pointer hover:bg-zinc-400 border border-transparent">
+                  Cancel
+                </button>
+              </form>
+            ) : (
+              <div className="flex items-start gap-3">
+                <div>
+                  <span className="text-[9px] font-mono tracking-widest text-[#b45309] uppercase block mb-1">
+                    Workspace Archives / Ref: {classroom.invite_code}
+                  </span>
+                  <h1 className="text-2xl lg:text-3xl font-serif font-semibold italic tracking-tight leading-none text-[#1c1b1a]">
+                    {classroom.name}
+                  </h1>
+                </div>
+              </div>
+            )}
           </div>
+
+          {isTeacher && (
+            <button
+              onClick={() => { setIsEditing(true); setEditName(classroom.name) }}
+              className="flex items-center gap-1.5 px-4 py-2 text-xs uppercase tracking-wider font-semibold border transition-all cursor-pointer border-zinc-300 hover:border-[#1c1b1a] hover:bg-[#1c1b1a] hover:text-white text-zinc-700 bg-transparent"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              Edit Class Label
+            </button>
+          )}
         </div>
-      </nav>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold" style={{ color: '#f0f0f0' }}>{classroom.name}</h1>
-          <p className="mt-2" style={{ color: '#888888' }}>{classroom.description}</p>
-          <div className="flex gap-4 mt-4 text-sm" style={{ color: '#888888' }}>
-            <span>Invite Code: <strong style={{ color: '#f0f0f0' }}>{classroom.invite_code}</strong></span>
-            <span>Students: {classroom.student_count || 0}</span>
-          </div>
+        {/* Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-0.5 border-b border-zinc-200">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2.5 text-xs font-bold uppercase tracking-widest relative whitespace-nowrap cursor-pointer ${
+                activeTab === tab
+                  ? 'text-zinc-900 border-b-2 border-zinc-900 font-bold'
+                  : 'text-zinc-400 hover:text-zinc-900'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
 
-        <div className="rounded-lg" style={{ background: '#111111', border: '1px solid #333333' }}>
-          <div className="border-b" style={{ borderColor: '#333333' }}>
-            <ClassroomTabs 
-              activeTab={activeTab} 
-              onTabChange={(tab) => {
-                setActiveTab(tab)
-                if (tab === 'chat') fetchChatHistory()
-              }}
-              user={user}
-            />
-          </div>
-
-          <div className="p-6">
-            {activeTab === 'overview' && (
-              <div>
-                <h2 className="text-xl font-semibold mb-4" style={{ color: '#f0f0f0' }}>Classroom Overview</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card style={{ background: '#1a1a1a', border: '1px solid #333333' }}>
-                    <CardHeader>
-                      <CardTitle style={{ color: '#f0f0f0' }}>Resources</CardTitle>
-                      <CardDescription style={{ color: '#888888' }}>{classroom.resource_count || 0} uploaded</CardDescription>
-                    </CardHeader>
-                  </Card>
-                  <Card style={{ background: '#1a1a1a', border: '1px solid #333333' }}>
-                    <CardHeader>
-                      <CardTitle style={{ color: '#f0f0f0' }}>Quizzes</CardTitle>
-                      <CardDescription style={{ color: '#888888' }}>{classroom.quiz_count || 0} created</CardDescription>
-                    </CardHeader>
-                  </Card>
-                  <Card style={{ background: '#1a1a1a', border: '1px solid #333333' }}>
-                    <CardHeader>
-                      <CardTitle style={{ color: '#f0f0f0' }}>Students</CardTitle>
-                      <CardDescription style={{ color: '#888888' }}>{classroom.student_count || 0} enrolled</CardDescription>
-                    </CardHeader>
-                  </Card>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'students' && (
-              <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold" style={{ color: '#f0f0f0' }}>Students</h2>
-                  <span className="text-sm" style={{ color: '#666666' }}>{students.length} enrolled</span>
-                </div>
-
-                {user?.role === 'teacher' && (
-                  <div className="mb-6 p-4 rounded-lg" style={{ background: '#1a1a1a', border: '1px solid #333333' }}>
-                    <h3 className="text-sm font-medium mb-3" style={{ color: '#888888' }}>Invite a Student</h3>
-                    <div className="flex gap-2">
-                      <input
-                        type="email"
-                        value={inviteEmail}
-                        onChange={(e) => setInviteEmail(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleInviteStudent()}
-                        placeholder="Enter student email"
-                        className="flex-1 px-3 py-2 rounded-md text-sm"
-                        style={{
-                          background: '#0d0d0d',
-                          border: '1px solid #444444',
-                          color: '#f0f0f0'
-                        }}
-                      />
-                      <Button
-                        onClick={handleInviteStudent}
-                        disabled={inviteLoading || !inviteEmail}
-                        style={{ background: '#ffffff', color: '#000000' }}
-                      >
-                        {inviteLoading ? 'Sending...' : 'Send Invite'}
-                      </Button>
-                    </div>
-                    <p className="text-xs mt-2" style={{ color: '#666666' }}>
-                      Or share the invite code: <strong style={{ color: '#f0f0f0' }}>{classroom.invite_code}</strong>
-                    </p>
+        {/* Overview Tab */}
+        {activeTab === 'Overview' && (
+          <div className="space-y-8 animate-fade-in">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {[
+                { label: 'Resources', icon: Folder, count: resources.length, tab: 'Resources' },
+                { label: 'Quizzes', icon: HelpCircle, count: quizzes.length, tab: 'Quizzes' },
+                { label: 'Students', icon: Users, count: students.length, tab: 'Students' },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="border-l-2 p-5 flex flex-col justify-between h-[120px] transition-all duration-300 bg-white border-zinc-900 border-t border-r border-b border-zinc-150"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400">
+                      {item.label}
+                    </span>
+                    <span className="p-1.5 border bg-[#faf7f3] border-zinc-150">
+                      <item.icon className="w-3.5 h-3.5" />
+                    </span>
                   </div>
-                )}
-
-                {students.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p style={{ color: '#666666' }}>No students enrolled yet.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {students.map((student) => (
-                      <div
-                        key={student.id}
-                        className="flex items-center justify-between px-4 py-3 rounded-lg"
-                        style={{ background: '#1a1a1a', border: '1px solid #333333' }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium" style={{ background: '#333333', color: '#ffffff' }}>
-                            {student.username?.[0]?.toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium" style={{ color: '#f0f0f0' }}>{student.username}</p>
-                            <p className="text-xs" style={{ color: '#666666' }}>{student.email}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'resources' && (
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold" style={{ color: '#f0f0f0' }}>Resources</h2>
-                  {user?.role === 'teacher' && (
-                    <div className="flex gap-2">
-                      <input
-                        type="file"
-                        id="resource-upload"
-                        accept=".pdf"
-                        className="hidden"
-                        disabled={uploading}
-                        onChange={async (e) => {
-                          const file = e.target.files[0]
-                          if (!file) return
-
-                          setUploading(true)
-                          try {
-                            toast.info('Generating upload URL...')
-
-                            const urlResponse = await api.post(
-                              `/classrooms/${id}/resources/generate-upload-url`,
-                              { filename: file.name, file_size: file.size }
-                            )
-                            const urlData = urlResponse.data
-
-                            toast.info('Uploading to Supabase...')
-
-                            const { error: uploadError } = await supabase.storage
-                              .from('resources')
-                              .upload(urlData.file_path, file, {
-                                contentType: 'application/pdf'
-                              });
-
-                            if (uploadError) throw uploadError
-
-                            toast.info('Creating resource record...')
-
-                            await api.post(`/classrooms/${id}/resources`, {
-                              filename: file.name,
-                              file_size: file.size,
-                              file_path: urlData.file_path
-                            })
-
-                            toast.success('Resource uploaded and indexing started!')
-                            fetchResources()
-                          } catch (error) {
-                            console.error('Upload error:', error)
-                            toast.error(getErrorMessage(error))
-                          } finally {
-                            setUploading(false)
-                          }
-                        }}
-                      />
-                      <Button
-                        onClick={() => document.getElementById('resource-upload').click()}
-                        disabled={uploading}
-                        style={{ background: '#ffffff', color: '#000000' }}
-                      >
-                        {uploading ? 'Uploading...' : 'Upload Resource'}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                {resources.length === 0 ? (
-                  <p style={{ color: '#666666' }}>No resources uploaded yet.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {resources.map((resource) => (
-                      <Card key={resource.id} style={{ background: '#1a1a1a', border: '1px solid #333333' }}>
-                        <CardContent className="pt-6">
-                          <div className="flex justify-between items-center">
-                            <div className="flex-1">
-                              {editingResourceId === resource.id ? (
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="text"
-                                    value={editingFilename}
-                                    onChange={(e) => setEditingFilename(e.target.value)}
-                                    className="px-2 py-1 rounded text-sm"
-                                    style={{
-                                      background: '#0d0d0d',
-                                      border: '1px solid #444444',
-                                      color: '#f0f0f0'
-                                    }}
-                                    autoFocus
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') saveFilename(resource.id)
-                                      if (e.key === 'Escape') cancelEditingFilename()
-                                    }}
-                                  />
-                                  <Button size="sm" onClick={() => saveFilename(resource.id)} style={{ background: '#ffffff', color: '#000000' }}>
-                                    Save
-                                  </Button>
-                                  <Button size="sm" variant="outline" onClick={cancelEditingFilename} style={{ borderColor: '#444444', color: '#f0f0f0' }}>
-                                    Cancel
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div>
-                                  <a
-                                    href={resource.file_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="font-medium cursor-pointer"
-                                    style={{ color: '#ffffff' }}
-                                  >
-                                    {resource.filename}
-                                  </a>
-                                  <p className="text-sm" style={{ color: '#666666' }}>
-                                    {resource.indexed ? 'Indexed' : 'Processing...'}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                            {user?.role === 'teacher' && editingResourceId !== resource.id && (
-                              <div className="flex items-center gap-2 ml-4">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => startEditingFilename(resource)}
-                                  style={{ borderColor: '#444444', color: '#f0f0f0' }}
-                                >
-                                  Edit
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => handleDeleteResource(resource.id)}
-                                >
-                                  Delete
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'chat' && (
-              <div className="h-[500px] flex flex-col" style={{ background: '#0d0d0d', borderRadius: '14px', overflow: 'hidden', border: '1px solid #333333' }}>
-                <div style={{ padding: '16px 24px', borderBottom: '1px solid #333333', background: '#0d0d0d' }}>
-                  <h2 className="text-lg font-semibold" style={{ color: '#f0f0f0' }}>Chat with Resources</h2>
-                  <p className="text-sm" style={{ color: '#888888' }}>Ask questions about your uploaded documents</p>
-                </div>
-
-                <div style={{ flex: 1, overflow: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {chatMessages.length === 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#666666' }}>
-                      <div style={{ fontSize: '3rem', opacity: 0.4 }}>📄</div>
-                      <p style={{ marginTop: '16px' }}>Ask questions about your uploaded resources</p>
-                      <p style={{ fontSize: '0.85rem', marginTop: '8px' }}>The AI will answer based on your PDFs</p>
-                    </div>
-                  )}
-
-                  {chatMessages.map((msg, idx) => (
-                    <div key={idx} style={{
-                      display: 'flex',
-                      justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                      animation: 'msgIn 0.25s ease'
-                    }}>
-                      <div style={{
-                        maxWidth: '65%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start'
-                      }}>
-                        {msg.role === 'assistant' && (
-                          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#666666', marginBottom: '3px', paddingLeft: '4px' }}>AI</span>
-                        )}
-                        <div style={{
-                          padding: '10px 15px',
-                          borderRadius: '18px',
-                          fontSize: '0.9rem',
-                          lineHeight: 1.5,
-                          wordBreak: 'break-word',
-                          ...(msg.role === 'user'
-                            ? { background: '#ffffff', color: '#000000', borderBottomRightRadius: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }
-                            : { background: '#2a2a2a', color: '#f0f0f0', borderBottomLeftRadius: '4px', border: '1px solid #444444' }
-                          )
-                        }}>
-                          {msg.role === 'user' ? msg.content : <ReactMarkdown>{msg.content}</ReactMarkdown>}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {chatLoading && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                      <div style={{ background: '#2a2a2a', padding: '10px 15px', borderRadius: '18px', borderBottomLeftRadius: '4px', border: '1px solid #444444' }}>
-                        <span style={{ color: '#888888' }}>Thinking...</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ padding: '16px 24px', borderTop: '1px solid #333333', background: '#0d0d0d' }}>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#1a1a1a', border: '1px solid #444444', borderRadius: '14px', padding: '8px 12px 8px 18px' }}>
-                    <input
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' && !chatLoading) sendChatMessage() }}
-                      placeholder="Ask a question about your resources..."
-                      disabled={chatLoading}
-                      style={{
-                        flex: 1,
-                        background: 'none',
-                        border: 'none',
-                        outline: 'none',
-                        color: '#f0f0f0',
-                        fontFamily: "'DM Sans', sans-serif",
-                        fontSize: '0.9rem'
-                      }}
-                    />
+                  <div className="flex items-end justify-between mt-2">
+                    <span className="text-4xl font-serif font-semibold italic text-zinc-900">
+                      {item.count}
+                    </span>
                     <button
-                      onClick={sendChatMessage}
-                      disabled={chatLoading || !chatInput.trim()}
-                      style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '10px',
-                        border: 'none',
-                        background: chatInput.trim() ? '#ffffff' : '#333333',
-                        color: '#000000',
-                        cursor: chatInput.trim() ? 'pointer' : 'not-allowed',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'background 0.2s, transform 0.15s',
-                        flexShrink: 0
-                      }}
+                      onClick={() => setActiveTab(item.tab)}
+                      className="text-xs font-bold uppercase tracking-widest hover:underline text-[#1c1b1a]"
                     >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-                        <line x1="22" y1="2" x2="11" y2="13" />
-                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                      </svg>
+                      Inspect →
                     </button>
                   </div>
                 </div>
-              </div>
-            )}
+              ))}
+            </div>
 
-            {activeTab === 'quizzes' && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px' }}>
-                <div style={{ fontSize: '4rem' }}>📝</div>
-                <h2 className="text-xl font-semibold mt-4" style={{ color: '#f0f0f0' }}>Coming Soon</h2>
-                <p className="text-sm mt-2" style={{ color: '#666666' }}>Quiz functionality will be available soon!</p>
-              </div>
-            )}
-
-            {activeTab === 'flashcards' && (
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold" style={{ color: '#f0f0f0' }}>Flashcards</h2>
-                  {user?.role === 'teacher' && (
-                    <Button style={{ background: '#ffffff', color: '#000000' }}>Create Flashcard</Button>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4">
+              {/* Activity Timeline */}
+              <div className="lg:col-span-2 border rounded-2xl p-6 bg-[#fdfaf7]/40 border-[#eae7e4]">
+                <h3 className="text-lg font-bold font-sans tracking-tight mb-6 flex items-center gap-2 text-[#1c1b1a]">
+                  Recent Activity
+                </h3>
+                <div className="space-y-6 relative before:absolute before:inset-y-1 before:left-[19px] before:w-0.5 before:bg-zinc-200">
+                  {resources.length === 0 && announcements.length === 0 && quizzes.length === 0 ? (
+                    <p className="text-sm text-zinc-400 text-center py-8">No activity yet. Start by adding resources or posting announcements.</p>
+                  ) : (
+                    <>
+                      {resources.slice(0, 2).map((res) => (
+                        <div key={res.id} className="relative pl-10 flex items-start gap-4">
+                          <span className="absolute left-0 p-1.5 rounded-full border bg-white border-zinc-100 text-[#4a7c59] z-10">
+                            <FileText className="w-3.5 h-3.5" />
+                          </span>
+                          <div className="p-4 rounded-xl border flex-1 space-y-1 bg-white border-[#eae7e4] text-zinc-700">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-mono font-semibold text-emerald-500">Resource Uploaded</span>
+                              <span className="text-2xs font-mono text-zinc-400">{res.created_at ? new Date(res.created_at).toLocaleDateString() : 'Recently'}</span>
+                            </div>
+                            <p className="text-sm font-sans font-medium line-clamp-1 text-zinc-950">"{res.filename}" was compiled to classroom folders.</p>
+                          </div>
+                        </div>
+                      ))}
+                      {announcements.slice(0, 1).map((ann) => (
+                        <div key={ann.id} className="relative pl-10 flex items-start gap-4">
+                          <span className="absolute left-0 p-1.5 rounded-full border bg-white border-zinc-100 text-amber-500 z-10">
+                            <Megaphone className="w-3.5 h-3.5" />
+                          </span>
+                          <div className="p-4 rounded-xl border flex-1 space-y-1 bg-white border-[#eae7e4] text-zinc-700">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-mono font-semibold text-[#8c52ff]">Announcement</span>
+                              <span className="text-2xs font-mono text-zinc-400">{ann.created_at ? new Date(ann.created_at).toLocaleDateString() : ''}</span>
+                            </div>
+                            <p className="text-sm font-sans line-clamp-2 text-zinc-950">{ann.content}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {quizzes.slice(0, 1).map((quiz) => (
+                        <div key={quiz.id} className="relative pl-10 flex items-start gap-4">
+                          <span className="absolute left-0 p-1.5 rounded-full border bg-white border-zinc-100 text-teal-500 z-10">
+                            <CheckSquare className="w-3.5 h-3.5" />
+                          </span>
+                          <div className="p-4 rounded-xl border flex-1 space-y-1 bg-white border-[#eae7e4] text-zinc-700">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-mono font-semibold text-teal-400">Quiz Published</span>
+                              <span className="text-2xs font-mono text-zinc-400">{quiz.created_at ? new Date(quiz.created_at).toLocaleDateString() : ''}</span>
+                            </div>
+                            <p className="text-sm font-sans line-clamp-1 text-zinc-950">"{quiz.title}" is now active with {quiz.question_count || 0} questions.</p>
+                          </div>
+                        </div>
+                      ))}
+                    </>
                   )}
                 </div>
-                {flashcards.length === 0 ? (
-                  <p style={{ color: '#666666' }}>No flashcards created yet.</p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {flashcards.map((card) => (
-                      <Card key={card.id} style={{ background: '#1a1a1a', border: '1px solid #333333' }}>
-                        <CardContent className="pt-6">
-                          <p className="font-medium" style={{ color: '#f0f0f0' }}>{card.front}</p>
-                          <p className="text-sm mt-2" style={{ color: '#888888' }}>{card.back}</p>
-                        </CardContent>
-                      </Card>
-                    ))}
+              </div>
+
+              {/* Right Widgets */}
+              <div className="space-y-6">
+                {/* AI Insights */}
+                <div className="rounded-2xl border p-6 flex flex-col justify-between transition-colors duration-300 bg-gradient-to-b from-white to-[#fbf9f6] border-[#eae7e4] text-[#1c1b1a]">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 rounded-lg bg-green-150 text-[#4a7c59]">
+                        <Sparkles className="w-4 h-4 animate-pulse" />
+                      </span>
+                      <h4 className="font-bold text-sm tracking-tight font-sans">AI Insights</h4>
+                    </div>
+                    <p className="text-xs leading-relaxed font-sans text-zinc-600">
+                      Based on available resources, you can generate a comprehensive review sheet for your students covering all key topics in <strong>"{classroom.name}"</strong>.
+                    </p>
                   </div>
-                )}
+                  <div className="pt-5 border-t border-dashed mt-4 border-zinc-100">
+                    <button
+                      onClick={handleGenerateReview}
+                      disabled={generatingAI}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 text-xs font-semibold rounded-xl cursor-pointer transition-all active:scale-95 text-white bg-[#4a7c59] hover:bg-[#35583f] disabled:bg-zinc-200"
+                    >
+                      {generatingAI ? (
+                        <>
+                          <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        'Generate Review Material →'
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Upcoming */}
+                <div className="rounded-2xl border p-6 space-y-4 bg-white border-[#eae7e4]">
+                  <h4 className="font-bold text-sm tracking-tight font-sans text-zinc-900">Upcoming</h4>
+                  <p className="text-xs text-zinc-400">No upcoming events scheduled.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Announcements Tab */}
+        {activeTab === 'Announcements' && (
+          <div className="space-y-6 animate-fade-in max-w-4xl">
+            {isTeacher && (
+              <form
+                onSubmit={handlePostAnnouncement}
+                className="border rounded-xl p-5 space-y-4 bg-white border-[#eae7e4]"
+              >
+                <h4 className="text-sm font-bold font-sans tracking-tight">Post New Announcement</h4>
+                <textarea
+                  className="w-full h-24 p-3 rounded-lg border text-sm focus:outline-none bg-[#fdfaf7] border-[#d4d2d0] text-zinc-800 placeholder:text-zinc-400 focus:border-[#4a7c59]"
+                  placeholder="What would you like to share with your students today?"
+                  value={announcementMsg}
+                  onChange={(e) => setAnnouncementMsg(e.target.value)}
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={announcementPosting || !announcementMsg.trim()}
+                    className="py-2 px-4 text-xs font-semibold rounded-lg text-white cursor-pointer transition-colors bg-[#4a7c59] hover:bg-[#32533c] disabled:bg-zinc-200"
+                  >
+                    {announcementPosting ? 'Posting...' : 'Publish Announcement'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="space-y-4">
+              {announcements.length === 0 ? (
+                <p className="text-sm text-zinc-400 font-mono text-center py-6">No announcements shared yet.</p>
+              ) : (
+                announcements.map((ann) => (
+                  <div key={ann.id} className="border rounded-xl p-5 bg-white border-[#eae7e4]">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-xs text-indigo-700">
+                          {(ann.teacher_name || 'T').charAt(0)}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs leading-none">{ann.teacher_name || 'Teacher'}</h4>
+                          <span className="text-3xs font-mono text-zinc-400 leading-none mt-0.5 block">
+                            {ann.created_at ? new Date(ann.created_at).toLocaleDateString() : ''}
+                          </span>
+                        </div>
+                      </div>
+                      {isTeacher && (
+                        <button
+                          onClick={() => handleDeleteAnnouncement(ann.id)}
+                          className="p-1.5 text-zinc-400 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {ann.title && <p className="text-xs font-semibold text-zinc-600 mb-1">{ann.title}</p>}
+                    <p className="text-sm leading-relaxed">{ann.content}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Students Tab */}
+        {activeTab === 'Students' && (
+          <div className="space-y-6 animate-fade-in max-w-4xl">
+            {isTeacher && (
+              <form
+                onSubmit={handleInviteStudent}
+                className="border rounded-xl p-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-end bg-white border-[#eae7e4]"
+              >
+                <div className="space-y-1.5">
+                  <label className="text-2xs font-mono text-zinc-400 block">Student Name</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 rounded-lg border text-xs focus:outline-none bg-[#fdfaf7] border-[#d4d2d0]"
+                    placeholder="e.g. Alishba Khan"
+                    value={studentName}
+                    onChange={(e) => setStudentName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-2xs font-mono text-zinc-400 block">Student Email</label>
+                  <input
+                    type="email"
+                    className="w-full px-3 py-2 rounded-lg border text-xs focus:outline-none bg-[#fdfaf7] border-[#d4d2d0]"
+                    placeholder="e.g. khan@student.com"
+                    value={studentEmail}
+                    onChange={(e) => setStudentEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={inviteLoading || !studentEmail.trim()}
+                  className="w-full py-2 px-4 text-xs font-semibold rounded-lg text-white cursor-pointer transition-colors bg-[#4a7c59] hover:bg-[#32533c] disabled:bg-zinc-200"
+                >
+                  {inviteLoading ? 'Inviting...' : 'Add Student'}
+                </button>
+              </form>
+            )}
+
+            <div className="border rounded-xl overflow-hidden border-[#eae7e4]">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="text-2xs font-mono text-zinc-400 uppercase border-b bg-zinc-50 border-[#eae7e4]">
+                    <th className="py-3 px-4">Student</th>
+                    <th className="py-3 px-4">Email</th>
+                    <th className="py-3 px-4">Joined</th>
+                  </tr>
+                </thead>
+                <tbody className="text-xs divide-y divide-zinc-100">
+                  {students.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="py-6 text-center text-zinc-400 font-mono">No students enrolled yet.</td>
+                    </tr>
+                  ) : (
+                    students.map((student) => (
+                      <tr key={student.id} className="text-zinc-800">
+                        <td className="py-3 px-4 flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-extrabold text-2xs leading-none">
+                            {(student.username || student.email || 'S').charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-semibold">{student.username || student.email}</span>
+                        </td>
+                        <td className="py-3 px-4 font-mono text-zinc-400">{student.email || '—'}</td>
+                        <td className="py-3 px-4 text-zinc-400">{student.enrolled_at ? new Date(student.enrolled_at).toLocaleDateString() : '—'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Resources Tab */}
+        {activeTab === 'Resources' && (
+          <div className="space-y-6 animate-fade-in max-w-4xl">
+            {isTeacher && (
+              <div className="border rounded-xl p-5 space-y-4 bg-white border-[#eae7e4]">
+                <h4 className="text-sm font-bold font-sans tracking-tight">Upload Resource</h4>
+                <div className="border-2 border-dashed border-zinc-200 rounded-xl p-8 text-center">
+                  <FileText className="w-8 h-8 mx-auto text-zinc-300 mb-2" />
+                  <p className="text-sm text-zinc-500 mb-3">Drag and drop a PDF file, or click to browse</p>
+                  <label className="inline-block py-2 px-4 text-xs font-semibold rounded-lg text-white cursor-pointer bg-[#4a7c59] hover:bg-[#32533c]">
+                    {uploading ? 'Uploading...' : 'Browse Files'}
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                      disabled={uploading}
+                    />
+                  </label>
+                  <p className="text-2xs text-zinc-400 mt-2">PDF files up to 10MB</p>
+                </div>
               </div>
             )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {resources.length === 0 ? (
+                <p className="sm:col-span-2 text-sm text-zinc-400 font-mono text-center py-6">No resources uploaded yet.</p>
+              ) : (
+                resources.map((res) => (
+                  <div
+                    key={res.id}
+                    className="border rounded-xl p-5 flex items-start gap-4 bg-white border-[#eae7e4]"
+                  >
+                    <div className="p-2 rounded-lg border bg-zinc-50 border-zinc-100 text-[#4a7c59]">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <h5 className="font-bold text-sm tracking-tight text-zinc-900">{res.filename}</h5>
+                        {isTeacher && (
+                          <button
+                            onClick={() => handleDeleteResource(res.id)}
+                            className="p-1 text-zinc-400 hover:text-red-500 transition-colors shrink-0"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-3xs font-mono text-zinc-400">
+                        <span className="uppercase">PDF</span>
+                        <span>•</span>
+                        <span>{res.file_size ? `${(res.file_size / 1024).toFixed(0)} KB` : ''}</span>
+                        <span>•</span>
+                        <span>{res.indexed ? 'Indexed' : 'Pending'}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Quizzes Tab */}
+        {activeTab === 'Quizzes' && (
+          <div className="space-y-6 animate-fade-in max-w-4xl">
+            {isTeacher && (
+              <form
+                onSubmit={handleCreateQuiz}
+                className="border rounded-xl p-5 grid grid-cols-1 sm:grid-cols-4 gap-4 items-end bg-white border-[#eae7e4]"
+              >
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-2xs font-mono text-zinc-400 block">Quiz Title</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 rounded-lg border text-xs focus:outline-none bg-[#fdfaf7] border-[#d4d2d0]"
+                    placeholder="e.g. Chapter 4 review"
+                    value={quizTitle}
+                    onChange={(e) => setQuizTitle(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-2xs font-mono text-zinc-400 block">Questions</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    className="w-full px-3 py-2 rounded-lg border text-xs focus:outline-none bg-[#fdfaf7] border-[#d4d2d0]"
+                    value={quizQuestions}
+                    onChange={(e) => setQuizQuestions(Number(e.target.value))}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={quizCreating || !quizTitle.trim()}
+                  className="w-full py-2 px-4 text-xs font-semibold rounded-lg text-white cursor-pointer transition-colors bg-[#4a7c59] hover:bg-[#32533c] disabled:bg-zinc-200"
+                >
+                  {quizCreating ? 'Creating...' : 'Add Quiz'}
+                </button>
+              </form>
+            )}
+
+            <div className="space-y-4">
+              {quizzes.length === 0 ? (
+                <p className="text-sm text-zinc-400 font-mono text-center py-6">No quizzes created yet.</p>
+              ) : (
+                quizzes.map((quiz) => (
+                  <div
+                    key={quiz.id}
+                    className="border rounded-xl p-5 flex items-center justify-between bg-white border-[#eae7e4]"
+                  >
+                    <div>
+                      <h5 className="font-bold text-sm tracking-tight text-zinc-900">{quiz.title}</h5>
+                      <div className="flex items-center gap-2 mt-1 text-3xs font-mono text-zinc-400">
+                        <span>{quiz.question_count || 0} Questions</span>
+                        <span>•</span>
+                        <span>{quiz.created_at ? new Date(quiz.created_at).toLocaleDateString() : ''}</span>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full text-2xs font-mono font-bold border bg-teal-50 border-teal-200 text-teal-600">
+                      {quiz.is_ai_generated ? 'AI Generated' : 'Published'}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* AI Modal */}
+      {showAIModal && aiMaterial && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="w-full max-w-2xl rounded-2xl border p-6 space-y-4 shadow-xl bg-white border-[#eae7e4] text-[#1c1b1a]">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <div className="flex items-center gap-2 text-[#4a7c59]">
+                <Sparkles className="w-5 h-5 animate-pulse" />
+                <h3 className="font-bold text-base font-sans tracking-tight">Generated Review Material</h3>
+              </div>
+              <button onClick={() => setShowAIModal(false)} className="text-zinc-400 hover:text-zinc-900 font-semibold cursor-pointer text-sm">
+                Close
+              </button>
+            </div>
+            <div className="max-h-[350px] overflow-y-auto p-4 rounded-xl border font-sans text-xs leading-relaxed space-y-3 border-zinc-100 bg-[#fdfaf7]/30 whitespace-pre-wrap">
+              {aiMaterial}
+            </div>
+            <div className="flex flex-wrap gap-3 justify-end pt-3 border-t border-zinc-100">
+              <button
+                onClick={() => {
+                  const blob = new Blob([aiMaterial], { type: 'text/plain' })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `Review-${classroom.name}-${new Date().toISOString().split('T')[0]}.txt`
+                  a.click()
+                }}
+                className="py-2 px-4 rounded-xl text-xs font-semibold border cursor-pointer transition-colors border-[#eae7e4] text-zinc-500 hover:bg-zinc-50 bg-white"
+              >
+                Download (.txt)
+              </button>
+              <button
+                onClick={saveAIToResources}
+                className="py-2 px-4 rounded-xl text-xs font-semibold text-white cursor-pointer transition-all bg-[#4a7c59] hover:bg-[#35583f]"
+              >
+                Save to Resources
+              </button>
+            </div>
           </div>
         </div>
-      </main>
+      )}
     </div>
   )
 }

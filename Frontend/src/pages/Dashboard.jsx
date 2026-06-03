@@ -1,191 +1,210 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { Plus, Sigma, FlaskConical, Scroll, Clipboard, Check } from 'lucide-react'
 import api from '@/lib/api'
 import { toast } from 'sonner'
+import { useSidebar } from '@/components/ui/sidebar'
+import { CreateClassroomModal } from '@/components/classroom'
+
+const iconMap = {
+  sigma: Sigma,
+  flask: FlaskConical,
+  scroll: Scroll,
+}
 
 const Dashboard = () => {
   const [user, setUser] = useState(null)
   const [classrooms, setClassrooms] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [newClassroom, setNewClassroom] = useState({ name: '', description: '' })
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [copiedId, setCopiedId] = useState(null)
   const navigate = useNavigate()
+  const { setOpenMobile } = useSidebar()
 
   useEffect(() => {
-    fetchUserAndClassrooms()
+    fetchClassrooms()
   }, [])
 
-  const fetchUserAndClassrooms = async () => {
+  const fetchClassrooms = async () => {
     try {
-      const userResponse = await api.get('/auth/me')
-      setUser(userResponse.data)
-
-      const classroomsResponse = await api.get('/classrooms/')
-      setClassrooms(classroomsResponse.data.classrooms || [])
+      const userRes = await api.get('/auth/me')
+      setUser(userRes.data)
+      const res = await api.get('/classrooms/')
+      setClassrooms(res.data.classrooms || [])
     } catch (error) {
       toast.error('Failed to load dashboard')
-      if (error.response?.status === 401) {
-        navigate('/')
-      }
+      if (error.response?.status === 401) navigate('/')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleCreateClassroom = async (e) => {
-    e.preventDefault()
+  const handleCreateClassroom = async (data) => {
     try {
-      await api.post('/classrooms/', newClassroom)
+      await api.post('/classrooms/', data)
       toast.success('Classroom created successfully!')
-      setShowCreateForm(false)
-      setNewClassroom({ name: '', description: '' })
-      fetchUserAndClassrooms()
+      setShowCreateModal(false)
+      fetchClassrooms()
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to create classroom')
     }
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem('clarix_token')
-    navigate('/')
+  const handleCopyCode = (e, id, code) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(code)
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const handleSelect = (cls) => {
+    navigate(`/classroom/${cls.id}`)
+    setOpenMobile(false)
+  }
+
+  const getIcon = (iconName) => {
+    const Icon = iconMap[iconName] || Sigma
+    return <Icon className="w-4 h-4" />
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0d0d0d' }}>
-        <div className="text-lg" style={{ color: '#888888' }}>Loading...</div>
+      <div className="flex items-center justify-center p-12 min-h-[60vh]">
+        <div className="text-lg text-zinc-400">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen" style={{ background: '#0d0d0d' }}>
-      <nav style={{ background: '#111111', borderBottom: '1px solid #333333' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <h1 className="text-xl font-bold" style={{ color: '#ffffff' }}>Clarix</h1>
-            <div className="flex items-center gap-4">
-              <span className="text-sm" style={{ color: '#888888' }}>
-                {user?.username} ({user?.role})
+    <div className="p-6">
+      <div className="max-w-7xl mx-auto space-y-12 select-none">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between pb-6 border-b border-zinc-200 gap-4">
+          <div className="flex items-start gap-4">
+            <div>
+              <span className="text-[10px] font-bold font-mono tracking-[0.2em] text-[#b45309] uppercase block mb-1">
+                Academic Index
               </span>
-              <Button 
-                variant="outline" 
-                onClick={handleLogout}
-                style={{ 
-                  borderColor: '#444444', 
-                  color: '#f0f0f0',
-                  background: 'transparent'
-                }}
-              >
-                Logout
-              </Button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold" style={{ color: '#f0f0f0' }}>
-              {user?.role === 'teacher' ? 'My Classrooms' : 'Enrolled Classrooms'}
-            </h2>
-            {user?.role === 'teacher' && (
-              <Button 
-                onClick={() => setShowCreateForm(!showCreateForm)}
-                style={{ background: '#ffffff', color: '#000000' }}
-              >
-                {showCreateForm ? 'Cancel' : 'Create Classroom'}
-              </Button>
-            )}
-          </div>
-
-          {showCreateForm && user?.role === 'teacher' && (
-            <Card className="mb-6" style={{ background: '#111111', border: '1px solid #333333' }}>
-              <CardHeader>
-                <CardTitle style={{ color: '#f0f0f0' }}>Create New Classroom</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleCreateClassroom} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: '#888888' }}>Classroom Name</label>
-                    <Input
-                      type="text"
-                      required
-                      value={newClassroom.name}
-                      onChange={(e) => setNewClassroom({ ...newClassroom, name: e.target.value })}
-                      placeholder="Enter classroom name"
-                      style={{ 
-                        background: '#1a1a1a', 
-                        border: '1px solid #444444', 
-                        color: '#f0f0f0'
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2" style={{ color: '#888888' }}>Description</label>
-                    <textarea
-                      value={newClassroom.description}
-                      onChange={(e) => setNewClassroom({ ...newClassroom, description: e.target.value })}
-                      className="w-full px-3 py-2 rounded-md"
-                      style={{ 
-                        background: '#1a1a1a', 
-                        border: '1px solid #444444', 
-                        color: '#f0f0f0'
-                      }}
-                      rows="3"
-                      placeholder="Enter classroom description"
-                    />
-                  </div>
-                  <Button type="submit" style={{ background: '#ffffff', color: '#000000' }}>
-                    Create
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          )}
-
-          {classrooms.length === 0 ? (
-            <div className="text-center py-12">
-              <p style={{ color: '#666666' }}>
+              <h1 className="text-4xl lg:text-5xl font-serif italic tracking-tight text-zinc-900">
+                {user?.role === 'teacher' ? 'My Classrooms' : 'Enrolled Classrooms'}
+              </h1>
+              <p className="text-xs mt-3 max-w-xl font-sans leading-relaxed text-zinc-500">
                 {user?.role === 'teacher'
-                  ? 'No classrooms created yet. Create your first classroom!'
-                  : 'No classrooms enrolled yet.'}
+                  ? 'Select an academic folio workspace to initiate secure interactive review loops with the AI context-engine.'
+                  : 'Browse your enrolled classrooms and start learning.'}
               </p>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {classrooms.map((classroom) => (
-                <Card
-                  key={classroom.id}
-                  className="cursor-pointer transition-all"
-                  style={{ 
-                    background: '#111111', 
-                    border: '1px solid #333333' 
-                  }}
-                  onClick={() => navigate(`/classroom/${classroom.id}`)}
-                >
-                  <CardHeader>
-                    <CardTitle style={{ color: '#f0f0f0' }}>{classroom.name}</CardTitle>
-                    <CardDescription style={{ color: '#888888' }}>
-                      {classroom.description || 'No description'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-between text-sm" style={{ color: '#666666' }}>
-                      <span>Students: {classroom.student_count || 0}</span>
-                      <span>Code: {classroom.invite_code}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+          </div>
+
+          {user?.role === 'teacher' && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest font-bold border transition-all cursor-pointer bg-[#1c1b1a] text-white border-zinc-900 hover:bg-[#faf7f3] hover:text-[#1c1b1a]"
+            >
+              <Plus className="w-4 h-4" />
+              New Archive
+            </button>
+          )}
+        </div>
+
+        {/* Classrooms Grid */}
+        {classrooms.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-zinc-400 text-sm">
+              {user?.role === 'teacher'
+                ? 'No classrooms created yet. Create your first classroom!'
+                : 'No classrooms enrolled yet.'}
+            </p>
+            {user?.role === 'teacher' && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="mt-4 px-5 py-3 bg-[#1c1b1a] text-white text-xs uppercase tracking-widest font-bold border border-zinc-900 cursor-pointer hover:bg-[#faf7f3] hover:text-[#1c1b1a] transition-all"
+              >
+                <Plus className="w-4 h-4 inline mr-2" />
+                Create Classroom
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {classrooms.map((cls) => (
+            <div
+              key={cls.id}
+              onClick={() => handleSelect(cls)}
+              className="group relative border p-6 flex flex-col justify-between h-[230px] transition-all duration-300 cursor-pointer bg-white border-[#eae6e1] hover:border-zinc-900 hover:shadow-[0_4px_25px_rgba(28,27,26,0.04)]"
+            >
+              <div className="absolute top-0 right-0 w-2.5 h-2.5 border-t border-r transition-colors duration-300 border-zinc-200 group-hover:border-zinc-900" />
+
+              <div className="flex items-center justify-between">
+                <div className="p-2 border bg-[#faf7f3] border-[#eae6e1]">
+                  {getIcon(cls.icon || 'sigma')}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-amber-500" />
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-zinc-400">
+                    Active
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <span className="text-[9px] font-mono tracking-widest text-[#b45309] uppercase block mb-1">
+                  Ref. Code: {(cls.invite_code || '').split('-')[0] || 'ACAD'}
+                </span>
+                <h3 className="text-xl font-serif font-semibold italic tracking-tight leading-tight group-hover:underline decoration-amber-500/50 decoration-1 text-zinc-900">
+                  {cls.name}
+                </h3>
+              </div>
+
+              <div className="space-y-2 pt-4 border-t border-[#eae6e1]/75">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className="uppercase tracking-wider text-[9px] text-zinc-400">Enrolled</span>
+                  <span className="px-2 py-0.5 font-bold font-mono border text-[10px] bg-[#faf7f3] border-zinc-150 text-zinc-800">
+                    {cls.student_count || 0} students
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className="uppercase tracking-wider text-[9px] text-zinc-400">Code</span>
+                  <button
+                    onClick={(e) => handleCopyCode(e, cls.id, cls.invite_code)}
+                    className="flex items-center gap-2 px-2 py-1 border font-medium cursor-pointer transition-all bg-[#faf7f3] hover:bg-white border-zinc-250 text-zinc-800"
+                    title="Copy Invite Code"
+                  >
+                    <span className="font-mono text-[11px] tracking-wider">{cls.invite_code}</span>
+                    {copiedId === cls.id ? (
+                      <Check className="w-3 h-3 text-emerald-500" />
+                    ) : (
+                      <Clipboard className="w-3 h-3 opacity-60" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {user?.role === 'teacher' && (
+            <div
+              onClick={() => setShowCreateModal(true)}
+              className="border border-dashed p-6 flex flex-col justify-center items-center h-[230px] cursor-pointer transition-all duration-300 select-none group border-[#eae6e1] hover:border-zinc-900 bg-transparent hover:bg-white text-zinc-500"
+            >
+              <div className="p-3.5 mb-3 transition-all duration-300 group-hover:scale-105 border bg-[#faf7f3] text-zinc-800 border-[#eae6e1]">
+                <Plus className="w-4 h-4" />
+              </div>
+              <p className="font-serif font-semibold italic text-base tracking-tight mb-0.5">Catalog New Folio</p>
+              <span className="text-[9px] uppercase font-mono tracking-widest opacity-60">Initialize syllabus</span>
             </div>
           )}
         </div>
-      </main>
+      </div>
+
+      {showCreateModal && (
+        <CreateClassroomModal
+          onClose={() => setShowCreateModal(false)}
+          onSave={handleCreateClassroom}
+        />
+      )}
     </div>
   )
 }
