@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Sparkles, MessageSquare, Plus, Folder, Share2, Paperclip, Send, FileText,
-  ChevronDown, ArrowLeft, RefreshCw
+  ChevronDown, ArrowLeft, RefreshCw, X
 } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ const Learn = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showResourceList, setShowResourceList] = useState(false);
   const [loadingSessions, setLoadingSessions] = useState(false);
+  const [selectedResource, setSelectedResource] = useState(null);
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
 
@@ -287,21 +288,21 @@ const Learn = () => {
   };
 
   return (
-    <div className="flex h-screen bg-[#FAF8F6]">
+    <div className="flex h-screen bg-[#faf7f3]">
         {/* Sidebar */}
-        <aside className="w-[280px] shrink-0 flex flex-col border-r border-[#E8E4E0] bg-white">
-          <div className="p-5 border-b border-[#E8E4E0]">
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="flex items-center gap-1.5 text-xs text-[#6B6A68] hover:text-[#4A7C59] transition-colors mb-4"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Dashboard
-            </button>
+        <aside className="w-[280px] shrink-0 flex flex-col border-r border-[#eae6e1] bg-white">
+          <div className="p-5 border-b border-[#eae6e1] flex flex-col gap-4">
+            <div className="flex items-center gap-2.5">
+              <img src="/icon.png" className="w-8 h-8 rounded-lg object-contain" />
+              <div className="flex flex-col leading-none">
+                <span className="font-bold text-base tracking-tight">Clarix</span>
+                <span className="text-[10px] text-zinc-500 font-mono">Learn</span>
+              </div>
+            </div>
             <button
               onClick={handleNewConversation}
               disabled={!selectedClassroom}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold bg-[#4A7C59] text-white hover:bg-[#3d6b4c] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-semibold bg-[#4A7C59] text-white hover:bg-[#faf7f3] hover:text-[#4A7C59] border border-[#4A7C59] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-4 h-4" />
               New Conversation
@@ -310,21 +311,21 @@ const Learn = () => {
 
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
             {!selectedClassroom ? (
-              <div className="text-center py-8 text-xs text-[#ACAAA6]">
+              <div className="text-center py-8 text-xs text-zinc-400">
                 Select a classroom to start
               </div>
             ) : loadingSessions ? (
-              <div className="text-center py-8 text-xs text-[#ACAAA6]">
+              <div className="text-center py-8 text-xs text-zinc-400">
                 Loading...
               </div>
             ) : conversations.length === 0 ? (
-              <div className="text-center py-8 text-xs text-[#ACAAA6]">
+              <div className="text-center py-8 text-xs text-zinc-400">
                 No conversations yet
               </div>
             ) : (
               groupByTime(conversations).map((group) => (
                 <div key={group.label}>
-                  <span className="text-[10px] font-mono font-bold tracking-wider text-[#ACAAA6] uppercase block px-1 mb-2">
+                  <span className="text-[10px] font-mono font-bold tracking-wider text-zinc-400 uppercase block px-1 mb-2">
                     {group.label}
                   </span>
                   <div className="space-y-0.5">
@@ -334,8 +335,8 @@ const Learn = () => {
                         onClick={() => handleSelectConv(conv.id)}
                         className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs text-left transition-all ${
                           activeConvId === conv.id
-                            ? "bg-[#4A7C59]/10 text-[#4A7C59] font-semibold border border-[#4A7C59]/20"
-                            : "text-[#4A4948] hover:bg-[#F5F1EC] border border-transparent"
+                            ? "bg-[#faf7f3] text-[#4A7C59] font-semibold border border-[#eae6e1]"
+                            : "text-zinc-700 hover:bg-[#faf7f3] border border-transparent"
                         }`}
                       >
                         <MessageSquare className="w-3.5 h-3.5 shrink-0" />
@@ -352,14 +353,14 @@ const Learn = () => {
         {/* Main Chat Panel */}
         <main className="flex-1 flex flex-col overflow-hidden">
           {/* Header */}
-          <header className="px-6 py-3 border-b border-[#E8E4E0] bg-[#FAF8F6] flex items-center justify-between shrink-0">
+          <header className="px-6 py-3 border-b border-[#eae6e1] bg-[#faf7f3] flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <div className="relative">
                   <select
                     value={selectedClassroom?.id || ""}
                     onChange={(e) => handleClassroomChange(e.target.value)}
-                    className="pl-3 pr-7 py-1.5 rounded-lg border border-[#D4D0CC] text-xs font-medium appearance-none focus:outline-none cursor-pointer bg-white text-[#4A4948]"
+                    className="pl-3 pr-7 py-1.5 rounded-lg border border-zinc-200 text-xs font-medium appearance-none focus:outline-none cursor-pointer bg-white text-zinc-700"
                   >
                     <option value="" disabled>
                       Select a classroom...
@@ -370,15 +371,15 @@ const Learn = () => {
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#ACAAA6]" />
+                  <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400" />
                 </div>
 
                 <button
                   onClick={() => setShowResourceList(!showResourceList)}
                   className={`p-1.5 rounded-lg border flex items-center gap-1.5 text-2xs font-medium transition-colors ${
                     showResourceList
-                      ? "bg-[#4A7C59]/10 text-[#4A7C59] border-[#4A7C59]/20"
-                      : "border-[#D4D0CC] text-[#6B6A68] hover:bg-[#F5F1EC]"
+                      ? "bg-[#faf7f3] text-[#4A7C59] border-[#eae6e1]"
+                      : "border-zinc-200 text-zinc-500 hover:bg-[#faf7f3]"
                   }`}
                 >
                   <Folder className="w-3 h-3" />
@@ -394,7 +395,7 @@ const Learn = () => {
                 navigator.clipboard.writeText(window.location.href);
                 toast.success("Link copied!");
               }}
-              className="p-1.5 rounded-lg hover:bg-[#F5F1EC] text-[#ACAAA6] transition-colors"
+              className="p-1.5 rounded-lg hover:bg-[#faf7f3] text-zinc-400 transition-colors"
               title="Share"
             >
               <Share2 className="w-3.5 h-3.5" />
@@ -403,23 +404,24 @@ const Learn = () => {
 
           {/* Resources Bar */}
           {showResourceList && (
-            <div className="px-6 py-3 border-b border-[#E8E4E0] bg-[#FAF8F6] space-y-2 shrink-0">
-              <span className="text-[10px] font-mono font-bold tracking-wider text-[#ACAAA6] uppercase block">
+            <div className="px-6 py-3 border-b border-[#eae6e1] bg-[#faf7f3] space-y-2 shrink-0">
+              <span className="text-[10px] font-mono font-bold tracking-wider text-zinc-400 uppercase block">
                 Classroom Resources
               </span>
               <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
                 {activeResources.length === 0 ? (
-                  <p className="text-[#ACAAA6] text-xs">
+                  <p className="text-zinc-400 text-xs">
                     No resources uploaded yet. Upload PDFs in the classroom to enable AI answers.
                   </p>
                 ) : (
                   activeResources.map((res) => (
                     <div
                       key={res.id}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-white border border-[#E8E4E0] text-2xs"
+                      onClick={() => setSelectedResource(res)}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-white border border-[#eae6e1] text-2xs cursor-pointer hover:border-[#4A7C59] transition-colors"
                     >
                       <FileText className="w-3 h-3 text-[#4A7C59] shrink-0" />
-                      <span className="text-[#4A4948]">{res.filename || res.title}</span>
+                      <span className="text-zinc-700">{res.filename || res.title}</span>
                     </div>
                   ))
                 )}
@@ -428,46 +430,46 @@ const Learn = () => {
           )}
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FDFAF7]/30">
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#faf7f3]/30">
           {!selectedClassroom ? (
             <div className="h-full flex flex-col justify-center items-center text-center p-6">
-              <div className="p-4 rounded-full bg-[#F5F1EC] text-[#4A7C59] mb-4">
+              <div className="p-4 rounded-full bg-[#faf7f3] text-[#4A7C59] mb-4">
                 <MessageSquare className="w-8 h-8" />
               </div>
-              <h4 className="text-lg font-semibold text-[#1C1B1A]">
+              <h4 className="text-lg font-semibold text-zinc-900">
                 Select a Classroom
               </h4>
-              <p className="text-sm text-[#6B6A68] mt-1 max-w-sm">
+              <p className="text-sm text-zinc-500 mt-1 max-w-sm">
                 Choose a classroom from the dropdown above to start chatting with AI
               </p>
             </div>
           ) : !activeConvId ? (
             <div className="h-full flex flex-col justify-center items-center text-center p-6">
-              <div className="p-4 rounded-full bg-[#F5F1EC] text-[#4A7C59] mb-4">
+              <div className="p-4 rounded-full bg-[#faf7f3] text-[#4A7C59] mb-4">
                 <Sparkles className="w-8 h-8" />
               </div>
-              <h4 className="text-lg font-semibold text-[#1C1B1A]">
+              <h4 className="text-lg font-semibold text-zinc-900">
                 Start a Conversation
               </h4>
-              <p className="text-sm text-[#6B6A68] mt-1 max-w-sm">
+              <p className="text-sm text-zinc-500 mt-1 max-w-sm">
                 Create a new conversation to ask questions about your classroom resources
               </p>
               <button
                 onClick={handleNewConversation}
-                className="mt-4 px-4 py-2 bg-[#4A7C59] text-white text-sm font-semibold rounded-xl hover:bg-[#3d6b4c] transition-colors"
+                className="mt-4 px-4 py-2 bg-[#4A7C59] text-white text-sm font-semibold rounded-xl border border-[#4A7C59] hover:bg-[#faf7f3] hover:text-[#4A7C59] transition-colors"
               >
                 + New Conversation
               </button>
             </div>
           ) : activeConv?.messages?.length === 0 ? (
             <div className="h-full flex flex-col justify-center items-center text-center p-6">
-              <div className="p-4 rounded-full bg-[#F5F1EC] text-[#4A7C59] mb-4">
+              <div className="p-4 rounded-full bg-[#faf7f3] text-[#4A7C59] mb-4">
                 <Sparkles className="w-8 h-8 animate-pulse" />
               </div>
-              <h4 className="text-lg font-semibold text-[#1C1B1A]">
+              <h4 className="text-lg font-semibold text-zinc-900">
                 Ask anything
               </h4>
-              <p className="text-sm text-[#6B6A68] mt-1 max-w-sm">
+              <p className="text-sm text-zinc-500 mt-1 max-w-sm">
                 Ask questions about your uploaded resources and the AI will answer based on your classroom materials.
               </p>
             </div>
@@ -483,7 +485,7 @@ const Learn = () => {
                   className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
                     msg.role === "user"
                       ? "bg-[#4A7C59] text-white"
-                      : "bg-[#F5F1EC] text-[#4A7C59]"
+                      : "bg-[#faf7f3] text-[#4A7C59]"
                   }`}
                 >
                   {msg.role === "user" ? (
@@ -497,7 +499,7 @@ const Learn = () => {
                   className={`flex-1 p-4 rounded-2xl ${
                     msg.role === "user"
                       ? "bg-[#4A7C59] text-white"
-                      : "bg-[#F5F1EC] text-[#4A4948]"
+                      : "bg-[#faf7f3] text-zinc-700"
                   }`}
                 >
                   {msg.role === "user" ? (
@@ -514,11 +516,11 @@ const Learn = () => {
 
           {isSubmitting && (
             <div className="flex max-w-3xl gap-3">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center bg-[#F5F1EC] text-[#4A7C59] shrink-0">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center bg-[#faf7f3] text-[#4A7C59] shrink-0">
                 <RefreshCw className="w-4 h-4 animate-spin" />
               </div>
-              <div className="flex-1 p-4 rounded-2xl bg-[#F5F1EC]/50">
-                <span className="text-sm text-[#ACAAA6] italic">Thinking...</span>
+              <div className="flex-1 p-4 rounded-2xl bg-[#faf7f3]/50">
+                <span className="text-sm text-zinc-400 italic">Thinking...</span>
               </div>
             </div>
           )}
@@ -527,10 +529,10 @@ const Learn = () => {
         </div>
 
         {/* Input */}
-        <footer className="p-4 border-t border-[#E8E4E0] bg-white shrink-0">
+        <footer className="p-4 border-t border-[#eae6e1] bg-white shrink-0">
           <form onSubmit={handleSendMessage} className="relative max-w-4xl mx-auto">
             <textarea
-              className="w-full min-h-[48px] max-h-32 p-3.5 pb-12 rounded-xl border border-[#D4D0CC] text-sm leading-relaxed focus:outline-none focus:border-[#4A7C59] focus:ring-2 focus:ring-[#4A7C59]/15 pr-14 resize-none bg-white text-[#1C1B1A] placeholder:text-[#ACAAA6] transition-all"
+              className="w-full min-h-[48px] max-h-32 p-3.5 pb-12 rounded-xl border border-zinc-200 text-sm leading-relaxed focus:outline-none focus:border-[#4A7C59] focus:ring-2 focus:ring-[#4A7C59]/15 pr-14 resize-none bg-white text-zinc-900 placeholder:text-zinc-400 transition-all"
               placeholder="Ask a question about your resources..."
               rows={1}
               value={inputMessage}
@@ -547,7 +549,7 @@ const Learn = () => {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="p-1.5 rounded-md hover:bg-[#F5F1EC] text-[#ACAAA6] transition-colors"
+                className="p-1.5 rounded-md hover:bg-[#faf7f3] text-zinc-400 transition-colors"
                 title="Attach file"
               >
                 <Paperclip className="w-4 h-4" />
@@ -564,16 +566,43 @@ const Learn = () => {
             <button
               type="submit"
               disabled={!inputMessage.trim() || isSubmitting || !activeConvId}
-              className="absolute right-2.5 bottom-2.5 p-2.5 rounded-xl bg-[#4A7C59] text-white hover:bg-[#3d6b4c] transition-all active:scale-[0.95] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+              className="absolute right-2.5 bottom-2.5 p-2.5 rounded-xl bg-[#4A7C59] text-white hover:bg-[#faf7f3] hover:text-[#4A7C59] border border-[#4A7C59] transition-all active:scale-[0.95] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
             >
               <Send className="w-4 h-4" />
             </button>
           </form>
-          <p className="text-[10px] text-[#ACAAA6] text-center mt-2">
+          <p className="text-[10px] text-zinc-400 text-center mt-2">
             AI can make mistakes. Verify important information.
           </p>
         </footer>
       </main>
+
+      {/* Resource Viewer Drawer */}
+      {selectedResource && (
+        <aside className="w-[450px] shrink-0 flex flex-col border-l border-[#eae6e1] bg-white">
+          <header className="px-4 py-3 border-b border-[#eae6e1] flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <FileText className="w-4 h-4 text-[#4A7C59] shrink-0" />
+              <span className="text-sm font-medium text-zinc-900 truncate">
+                {selectedResource.filename || selectedResource.title}
+              </span>
+            </div>
+            <button
+              onClick={() => setSelectedResource(null)}
+              className="p-1 rounded-md hover:bg-[#faf7f3] text-zinc-400 hover:text-zinc-900 transition-colors shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </header>
+          <div className="flex-1 bg-zinc-50">
+            <iframe
+              src={selectedResource.file_url}
+              className="w-full h-full"
+              title={selectedResource.filename || "Resource viewer"}
+            />
+          </div>
+        </aside>
+      )}
     </div>
   );
 };

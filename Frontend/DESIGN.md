@@ -2,7 +2,7 @@
 
 ## Theme & Styling
 
-- **Color scheme:** Dark mode only (`#0d0d0d` background, `#111111` card surfaces, `#333333` borders)
+- **Color scheme:** Dark mode only (`#0d0d0d` background, `#111111` card surfaces, `#333333` borders)c
 - **CSS framework:** Tailwind CSS v4 with `@tailwindcss/vite` plugin
 - **UI library:** shadcn/ui components (button, card, input, sidebar, sheet, dropdown-menu, etc.)
 - **Icons:** lucide-react
