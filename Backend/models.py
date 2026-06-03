@@ -147,6 +147,7 @@ class ChatSession(Base):
     id = Column(Integer, primary_key=True, index=True)
     classroom_id = Column(Integer, ForeignKey('classrooms.id'), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    title = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships

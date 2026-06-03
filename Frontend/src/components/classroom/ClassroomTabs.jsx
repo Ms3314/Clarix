@@ -1,12 +1,5 @@
-export const ClassroomTabs = ({ activeTab, onTabChange, onChatTabClick, user }) => {
-  const handleTabClick = (tab) => {
-    onTabChange(tab)
-    if (tab === 'chat' && onChatTabClick) {
-      onChatTabClick()
-    }
-  }
-
-  const allTabs = ['overview', 'announcements', 'students', 'resources', 'chat', 'quizzes', 'flashcards']
+export const ClassroomTabs = ({ activeTab, onTabChange, user }) => {
+  const allTabs = ['overview', 'announcements', 'students', 'resources', 'quizzes', 'flashcards']
   const visibleTabs = user?.role === 'teacher' 
     ? allTabs 
     : allTabs.filter(tab => tab !== 'students')
@@ -17,7 +10,7 @@ export const ClassroomTabs = ({ activeTab, onTabChange, onChatTabClick, user }) 
         {visibleTabs.map((tab) => (
           <button
             key={tab}
-            onClick={() => handleTabClick(tab)}
+            onClick={() => onTabChange(tab)}
             className={`py-4 px-6 font-medium text-sm ${activeTab === tab ? 'border-b-2' : ''}`}
             style={activeTab === tab 
               ? { borderColor: '#ffffff', color: '#ffffff' }

@@ -120,7 +120,7 @@ def format_context(results):
     return context
 
 
-def generate_rag_response(query: str, classroom_id: int):
+def generate_rag_response(query: str, classroom_id: int, conversation_history: list | None = None):
     results = query_resources(query, classroom_id)
     if not results:
         return (
@@ -134,7 +134,7 @@ def generate_rag_response(query: str, classroom_id: int):
         from langchain_openai import ChatOpenAI
         from langchain_core.prompts import ChatPromptTemplate
 
-        prompt = ChatPromptTemplate.from_messages([
+        messages = [
             ("system", """You are a helpful teaching assistant for a classroom. Use the following context from the classroom's PDF resources to answer the user's question.
 
 Format your responses nicely using:
@@ -150,8 +150,16 @@ If asked questions unrelated to the classroom materials (like general knowledge,
 
 Context:
 {context}"""),
-            ("user", "{query}")
-        ])
+        ]
+
+        if conversation_history:
+            for msg in conversation_history:
+                role = "user" if msg["role"] == "user" else "assistant"
+                messages.append((role, msg["content"]))
+
+        messages.append(("user", "{query}"))
+
+        prompt = ChatPromptTemplate.from_messages(messages)
 
         llm = ChatOpenAI(
             model="gpt-4o-mini",
@@ -165,5 +173,31 @@ Context:
 
     except Exception as e:
         print(f"[RAG] Error generating LLM response: {e}")
-        # Fallback: return the raw context so the user still sees something
         return f"Here is what I found in the classroom resources:\n{context}"
+
+
+def generate_conversation_title(query: str) -> str:
+    try:
+        from langchain_openai import ChatOpenAI
+        from langchain_core.prompts import ChatPromptTemplate
+
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", "Generate a very short title (3-6 words) for a conversation that starts with this question. Return ONLY the title, no quotes or punctuation."),
+            ("user", "{query}")
+        ])
+
+        llm = ChatOpenAI(
+            model="gpt-4o-mini",
+            temperature=0.3,
+            api_key=os.getenv("OPENAI_API_KEY")
+        )
+
+        chain = prompt | llm
+        response = chain.invoke({"query": query})
+        title = response.content.strip().strip("\"'")
+        return title[:60]
+
+    except Exception as e:
+        print(f"[RAG] Error generating title: {e}")
+        fallback = (query[:50] + "...") if len(query) > 50 else query
+        return fallback
