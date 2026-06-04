@@ -43,7 +43,7 @@ export default ({ onClose, onSave }) => {
 
         <form onSubmit={handleSubmit} className="space-y-4 font-sans">
           <div className="space-y-1.5">
-            <label className="text-2xs font-mono uppercase tracking-wider text-zinc-400 block">
+            <label className="text-2xs  uppercase tracking-wider text-zinc-400 block">
               Classroom/Course Title
             </label>
             <input
@@ -63,7 +63,7 @@ export default ({ onClose, onSave }) => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-2xs font-mono uppercase tracking-wider text-zinc-400 block">
+            <label className="text-2xs  uppercase tracking-wider text-zinc-400 block">
               Description
             </label>
             <textarea
@@ -76,13 +76,13 @@ export default ({ onClose, onSave }) => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-2xs font-mono uppercase tracking-wider text-zinc-400 block">
+            <label className="text-2xs  uppercase tracking-wider text-zinc-400 block">
               Invite Code
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
-                className="flex-1 rounded-xl border px-4 py-2.5 text-xs focus:outline-none font-mono font-bold uppercase tracking-wider bg-[#fdfaf7] border-[#d4d2d0] text-[#4a7c59]"
+                className="flex-1 rounded-xl border px-4 py-2.5 text-xs focus:outline-none  font-bold uppercase tracking-wider bg-[#fdfaf7] border-[#d4d2d0] text-[#4a7c59]"
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                 required
@@ -99,7 +99,7 @@ export default ({ onClose, onSave }) => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-2xs font-mono uppercase tracking-wider text-zinc-400 block">
+            <label className="text-2xs  uppercase tracking-wider text-zinc-400 block">
               Subject Emblem
             </label>
             <div className="flex items-center gap-3">
@@ -117,7 +117,7 @@ export default ({ onClose, onSave }) => {
                   {iconOpt === "sigma" && <Sigma className="w-4 h-4" />}
                   {iconOpt === "flask" && <FlaskConical className="w-4 h-4" />}
                   {iconOpt === "scroll" && <Scroll className="w-4 h-4" />}
-                  <span className="text-2xs font-mono uppercase ml-1.5 leading-none">{iconOpt}</span>
+                  <span className="text-2xs  uppercase ml-1.5 leading-none">{iconOpt}</span>
                 </button>
               ))}
             </div>

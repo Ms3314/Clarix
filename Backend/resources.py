@@ -165,7 +165,8 @@ async def list_resources(
         from Backend.models import Enrollment
         enrollment = db.query(Enrollment).filter(
             Enrollment.user_id == user.id,
-            Enrollment.classroom_id == classroom_id
+            Enrollment.classroom_id == classroom_id,
+            Enrollment.status == "approved"
         ).first()
         if not enrollment:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
@@ -190,7 +191,8 @@ async def list_sessions(
         from Backend.models import Enrollment
         enrollment = db.query(Enrollment).filter(
             Enrollment.user_id == user.id,
-            Enrollment.classroom_id == classroom_id
+            Enrollment.classroom_id == classroom_id,
+            Enrollment.status == "approved"
         ).first()
         if not enrollment:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
@@ -232,7 +234,8 @@ async def create_session(
         from Backend.models import Enrollment
         enrollment = db.query(Enrollment).filter(
             Enrollment.user_id == user.id,
-            Enrollment.classroom_id == classroom_id
+            Enrollment.classroom_id == classroom_id,
+            Enrollment.status == "approved"
         ).first()
         if not enrollment:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
@@ -273,7 +276,8 @@ async def get_session(
         from Backend.models import Enrollment
         enrollment = db.query(Enrollment).filter(
             Enrollment.user_id == user.id,
-            Enrollment.classroom_id == classroom_id
+            Enrollment.classroom_id == classroom_id,
+            Enrollment.status == "approved"
         ).first()
         if not enrollment:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
@@ -327,7 +331,8 @@ async def send_message(
         from Backend.models import Enrollment
         enrollment = db.query(Enrollment).filter(
             Enrollment.user_id == user.id,
-            Enrollment.classroom_id == classroom_id
+            Enrollment.classroom_id == classroom_id,
+            Enrollment.status == "approved"
         ).first()
         if not enrollment:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
@@ -402,7 +407,8 @@ async def get_chat_history(
         from Backend.models import Enrollment
         enrollment = db.query(Enrollment).filter(
             Enrollment.user_id == user.id,
-            Enrollment.classroom_id == classroom_id
+            Enrollment.classroom_id == classroom_id,
+            Enrollment.status == "approved"
         ).first()
         if not enrollment:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
@@ -427,7 +433,8 @@ async def chat_with_resources(
         from Backend.models import Enrollment
         enrollment = db.query(Enrollment).filter(
             Enrollment.user_id == user.id,
-            Enrollment.classroom_id == classroom_id
+            Enrollment.classroom_id == classroom_id,
+            Enrollment.status == "approved"
         ).first()
         if not enrollment:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")

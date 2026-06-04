@@ -296,7 +296,7 @@ const Learn = () => {
               <img src="/icon.png" className="w-8 h-8 rounded-lg object-contain" />
               <div className="flex flex-col leading-none">
                 <span className="font-bold text-base tracking-tight">Clarix</span>
-                <span className="text-[10px] text-zinc-500 font-mono">Learn</span>
+                <span className="text-[10px] text-zinc-500 ">Learn</span>
               </div>
             </div>
             <button
@@ -325,7 +325,7 @@ const Learn = () => {
             ) : (
               groupByTime(conversations).map((group) => (
                 <div key={group.label}>
-                  <span className="text-[10px] font-mono font-bold tracking-wider text-zinc-400 uppercase block px-1 mb-2">
+                  <span className="text-[10px]  font-bold tracking-wider text-zinc-400 uppercase block px-1 mb-2">
                     {group.label}
                   </span>
                   <div className="space-y-0.5">
@@ -405,7 +405,7 @@ const Learn = () => {
           {/* Resources Bar */}
           {showResourceList && (
             <div className="px-6 py-3 border-b border-[#eae6e1] bg-[#faf7f3] space-y-2 shrink-0">
-              <span className="text-[10px] font-mono font-bold tracking-wider text-zinc-400 uppercase block">
+              <span className="text-[10px]  font-bold tracking-wider text-zinc-400 uppercase block">
                 Classroom Resources
               </span>
               <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
