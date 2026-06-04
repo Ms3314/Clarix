@@ -101,7 +101,8 @@ async def list_quizzes(
     elif user.role == "student":
         enrollment = db.query(Enrollment).filter(
             Enrollment.user_id == user.id,
-            Enrollment.classroom_id == classroom_id
+            Enrollment.classroom_id == classroom_id,
+            Enrollment.status == "approved"
         ).first()
         if not enrollment:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
@@ -142,7 +143,8 @@ async def get_quiz(
     elif user.role == "student":
         enrollment = db.query(Enrollment).filter(
             Enrollment.user_id == user.id,
-            Enrollment.classroom_id == classroom_id
+            Enrollment.classroom_id == classroom_id,
+            Enrollment.status == "approved"
         ).first()
         if not enrollment:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
@@ -183,7 +185,8 @@ async def attempt_quiz(
 
     enrollment = db.query(Enrollment).filter(
         Enrollment.user_id == student.id,
-        Enrollment.classroom_id == classroom_id
+        Enrollment.classroom_id == classroom_id,
+        Enrollment.status == "approved"
     ).first()
     if not enrollment:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enrolled in this classroom")

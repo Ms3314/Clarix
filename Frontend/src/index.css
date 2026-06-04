@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
   --color-background: #faf8f6;
   --color-foreground: #1c1b1a;
   --color-card: #ffffff;

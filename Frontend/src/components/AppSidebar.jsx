@@ -70,7 +70,7 @@ export const AppSidebar = ({ ...props }) => {
                 <img src="/icon.png" className="w-8 h-8 rounded-lg object-contain" />
                 <div className="flex flex-col leading-none">
                   <span className="font-bold text-base tracking-tight">Clarix</span>
-                  <span className="text-[10px] text-[#6b6a68] font-mono">AI Classroom</span>
+                  <span className="text-[10px] text-[#6b6a68] ">AI Classroom</span>
                 </div>
               </div>
             </SidebarMenuButton>
@@ -80,7 +80,7 @@ export const AppSidebar = ({ ...props }) => {
 
       <SidebarContent className="py-3">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] font-mono tracking-wider text-[#acaaa6] uppercase px-4 pb-1.5">
+          <SidebarGroupLabel className="text-[10px]  tracking-wider text-[#acaaa6] uppercase px-4 pb-1.5">
             Main
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -123,7 +123,7 @@ export const AppSidebar = ({ ...props }) => {
           <Collapsible defaultOpen className="group/collapsible mt-1">
             <SidebarGroup>
               <SidebarGroupLabel asChild>
-                <CollapsibleTrigger className="text-[10px] font-mono tracking-wider text-[#acaaa6] uppercase px-4 py-1.5 hover:bg-[#f0eae3] rounded-lg mx-2 transition-colors">
+                <CollapsibleTrigger className="text-[10px]  tracking-wider text-[#acaaa6] uppercase px-4 py-1.5 hover:bg-[#f0eae3] rounded-lg mx-2 transition-colors">
                   <span className="flex items-center gap-2">
                     Classrooms
                     <ChevronDown className="w-3 h-3 ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />

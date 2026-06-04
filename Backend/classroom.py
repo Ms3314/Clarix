@@ -35,6 +35,9 @@ class ClassroomDetailResponse(ClassroomResponse):
 class EnrollStudentRequest(BaseModel):
     email: EmailStr
 
+class JoinClassroomRequest(BaseModel):
+    invite_code: str
+
 class ClassroomUpdate(BaseModel):
     name: str
     description: str = ""
@@ -80,12 +83,13 @@ async def list_classrooms(
 ):
     if user.role == "teacher":
         classrooms = db.query(Classroom).filter(Classroom.teacher_id == user.id).all()
-        print("classrooms for teacher",classrooms)
     else:
-        enrollments = db.query(Enrollment).filter(Enrollment.user_id == user.id).all()
+        enrollments = db.query(Enrollment).filter(
+            Enrollment.user_id == user.id,
+            Enrollment.status == "approved"
+        ).all()
         classroom_ids = [e.classroom_id for e in enrollments]
         classrooms = db.query(Classroom).filter(Classroom.id.in_(classroom_ids)).all()
-        print("classrooms for student",classrooms)
 
     return {
         "classrooms": [
@@ -96,7 +100,10 @@ async def list_classrooms(
                 "teacher_id": c.teacher_id,
                 "invite_code": c.invite_code,
                 "created_at": c.created_at,
-                "student_count": len(c.enrollments)
+                "student_count": db.query(Enrollment).filter(
+                    Enrollment.classroom_id == c.id,
+                    Enrollment.status == "approved"
+                ).count()
             } for c in classrooms
         ]
     }
@@ -117,10 +124,16 @@ async def get_classroom(
     elif user.role == "student":
         enrollment = db.query(Enrollment).filter(
             Enrollment.user_id == user.id,
-            Enrollment.classroom_id == classroom_id
+            Enrollment.classroom_id == classroom_id,
+            Enrollment.status == "approved"
         ).first()
         if not enrollment:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    approved_count = db.query(Enrollment).filter(
+        Enrollment.classroom_id == classroom_id,
+        Enrollment.status == "approved"
+    ).count()
 
     return {
         "id": classroom.id,
@@ -129,7 +142,7 @@ async def get_classroom(
         "teacher_id": classroom.teacher_id,
         "invite_code": classroom.invite_code,
         "created_at": classroom.created_at,
-        "student_count": len(classroom.enrollments),
+        "student_count": approved_count,
         "resource_count": len(classroom.resources),
         "quiz_count": len(classroom.quizzes)
     }
@@ -153,6 +166,11 @@ async def update_classroom(
     db.commit()
     db.refresh(classroom)
 
+    approved_count = db.query(Enrollment).filter(
+        Enrollment.classroom_id == classroom_id,
+        Enrollment.status == "approved"
+    ).count()
+
     return {
         "id": classroom.id,
         "name": classroom.name,
@@ -160,7 +178,7 @@ async def update_classroom(
         "teacher_id": classroom.teacher_id,
         "invite_code": classroom.invite_code,
         "created_at": classroom.created_at,
-        "student_count": len(classroom.enrollments),
+        "student_count": approved_count,
         "resource_count": len(classroom.resources),
         "quiz_count": len(classroom.quizzes)
     }
@@ -193,7 +211,7 @@ async def invite_student(
     if existing_enrollment:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Student already enrolled")
 
-    enrollment = Enrollment(user_id=student.id, classroom_id=classroom_id)
+    enrollment = Enrollment(user_id=student.id, classroom_id=classroom_id, status="approved")
     db.add(enrollment)
     db.commit()
 
@@ -241,12 +259,16 @@ async def list_students(
     elif user.role == "student":
         enrollment = db.query(Enrollment).filter(
             Enrollment.user_id == user.id,
-            Enrollment.classroom_id == classroom_id
+            Enrollment.classroom_id == classroom_id,
+            Enrollment.status == "approved"
         ).first()
         if not enrollment:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
-    enrollments = db.query(Enrollment).filter(Enrollment.classroom_id == classroom_id).all()
+    enrollments = db.query(Enrollment).filter(
+        Enrollment.classroom_id == classroom_id,
+        Enrollment.status == "approved"
+    ).all()
     students = []
     for e in enrollments:
         student = db.query(Users).filter(Users.id == e.user_id).first()
@@ -260,6 +282,127 @@ async def list_students(
             })
 
     return {"students": students}
+
+@router.post("/join")
+async def join_classroom(
+    request: JoinClassroomRequest,
+    student: Users = Depends(get_current_student),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(Classroom.invite_code == request.invite_code.upper()).first()
+    if not classroom:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid invite code")
+
+    existing = db.query(Enrollment).filter(
+        Enrollment.user_id == student.id,
+        Enrollment.classroom_id == classroom.id
+    ).first()
+    if existing:
+        if existing.status == "approved":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Already enrolled in this classroom")
+        elif existing.status == "pending":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Join request already pending")
+        else:
+            # Previously rejected — re-apply
+            existing.status = "pending"
+            db.commit()
+            return {"message": "Join request submitted for review"}
+
+    enrollment = Enrollment(
+        user_id=student.id,
+        classroom_id=classroom.id,
+        status="pending"
+    )
+    db.add(enrollment)
+    db.commit()
+
+    return {"message": "Join request submitted for teacher approval"}
+
+@router.get("/{classroom_id}/pending")
+async def list_pending_students(
+    classroom_id: int,
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(
+        Classroom.id == classroom_id,
+        Classroom.teacher_id == teacher.id
+    ).first()
+    if not classroom:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
+
+    enrollments = db.query(Enrollment).filter(
+        Enrollment.classroom_id == classroom_id,
+        Enrollment.status == "pending"
+    ).all()
+
+    pending = []
+    for e in enrollments:
+        student = db.query(Users).filter(Users.id == e.user_id).first()
+        if student:
+            pending.append({
+                "id": student.id,
+                "username": student.username,
+                "email": student.email,
+                "unique_id": student.unique_id,
+                "requested_at": e.enrolled_at
+            })
+
+    return {"pending": pending}
+
+@router.post("/{classroom_id}/pending/{student_id}/approve")
+async def approve_student(
+    classroom_id: int,
+    student_id: int,
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(
+        Classroom.id == classroom_id,
+        Classroom.teacher_id == teacher.id
+    ).first()
+    if not classroom:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
+
+    enrollment = db.query(Enrollment).filter(
+        Enrollment.user_id == student_id,
+        Enrollment.classroom_id == classroom_id,
+        Enrollment.status == "pending"
+    ).first()
+    if not enrollment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pending request not found")
+
+    enrollment.status = "approved"
+    db.commit()
+
+    return {"message": "Student approved successfully"}
+
+@router.delete("/{classroom_id}/pending/{student_id}/reject")
+async def reject_student(
+    classroom_id: int,
+    student_id: int,
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(
+        Classroom.id == classroom_id,
+        Classroom.teacher_id == teacher.id
+    ).first()
+    if not classroom:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
+
+    enrollment = db.query(Enrollment).filter(
+        Enrollment.user_id == student_id,
+        Enrollment.classroom_id == classroom_id,
+        Enrollment.status == "pending"
+    ).first()
+    if not enrollment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pending request not found")
+
+    db.delete(enrollment)
+    db.commit()
+
+    return {"message": "Student request rejected"}
 
 @router.delete("/{classroom_id}")
 async def delete_classroom(

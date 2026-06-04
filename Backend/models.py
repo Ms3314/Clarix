@@ -48,6 +48,7 @@ class Enrollment(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     classroom_id = Column(Integer, ForeignKey('classrooms.id'), nullable=False)
+    status = Column(String, default='approved')  # 'pending', 'approved', 'rejected'
     enrolled_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships

@@ -32,6 +32,8 @@ const ClassroomDetail = () => {
 
   const [uploading, setUploading] = useState(false)
   const [resourceFile, setResourceFile] = useState(null)
+  const [pendingStudents, setPendingStudents] = useState([])
+  const [actionLoading, setActionLoading] = useState(null)
 
   const [quizTitle, setQuizTitle] = useState('')
   const [quizQuestions, setQuizQuestions] = useState(5)
@@ -44,6 +46,12 @@ const ClassroomDetail = () => {
   useEffect(() => {
     fetchAll()
   }, [id])
+
+  useEffect(() => {
+    if (activeTab === 'Students' && classroom && user?.role === 'teacher') {
+      fetchPending(classroom)
+    }
+  }, [activeTab, classroom?.id, user?.role])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -63,6 +71,7 @@ const ClassroomDetail = () => {
         fetchQuizzes(cls),
         fetchAnnouncements(cls),
       ])
+      fetchPending(cls, userRes.data)
     } catch (error) {
       toast.error('Failed to load classroom')
       if (error.response?.status === 401) navigate('/')
@@ -76,6 +85,15 @@ const ClassroomDetail = () => {
       const res = await api.get(`/classrooms/${cls.id}/students`)
       setStudents(res.data.students || [])
     } catch { setStudents([]) }
+  }
+
+  const fetchPending = async (cls, userData) => {
+    const currentUser = userData || user
+    if (currentUser?.role !== 'teacher') return
+    try {
+      const res = await api.get(`/classrooms/${cls.id}/pending`)
+      setPendingStudents(res.data.pending || [])
+    } catch { setPendingStudents([]) }
   }
 
   const fetchResources = async (cls) => {
@@ -155,6 +173,33 @@ const ClassroomDetail = () => {
       toast.error(err.response?.data?.detail || 'Failed to invite')
     } finally {
       setInviteLoading(false)
+    }
+  }
+
+  const handleApproveStudent = async (studentId) => {
+    setActionLoading(studentId)
+    try {
+      await api.post(`/classrooms/${id}/pending/${studentId}/approve`)
+      toast.success('Student approved!')
+      setPendingStudents((prev) => prev.filter((s) => s.id !== studentId))
+      fetchStudents(classroom)
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to approve')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleRejectStudent = async (studentId) => {
+    setActionLoading(studentId)
+    try {
+      await api.delete(`/classrooms/${id}/pending/${studentId}/reject`)
+      toast.success('Request rejected')
+      setPendingStudents((prev) => prev.filter((s) => s.id !== studentId))
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to reject')
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -325,7 +370,7 @@ const ClassroomDetail = () => {
             ) : (
               <div className="flex items-start gap-3">
                 <div>
-                  <span className="text-[9px] font-mono tracking-widest text-[#b45309] uppercase block mb-1">
+                  <span className="text-[9px]  tracking-widest text-[#b45309] uppercase block mb-1">
                     Workspace Archives / Ref: {classroom.invite_code}
                   </span>
                   <h1 className="text-2xl lg:text-3xl font-serif font-semibold italic tracking-tight leading-none text-[#1c1b1a]">
@@ -378,7 +423,7 @@ const ClassroomDetail = () => {
                   className="border-l-2 p-5 flex flex-col justify-between h-[120px] transition-all duration-300 bg-white border-zinc-900 border-t border-r border-b border-zinc-150"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400">
+                    <span className="text-[10px]  uppercase tracking-widest text-zinc-400">
                       {item.label}
                     </span>
                     <span className="p-1.5 border bg-[#faf7f3] border-zinc-150">
@@ -418,8 +463,8 @@ const ClassroomDetail = () => {
                           </span>
                           <div className="p-4 rounded-xl border flex-1 space-y-1 bg-white border-[#eae7e4] text-zinc-700">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-mono font-semibold text-emerald-500">Resource Uploaded</span>
-                              <span className="text-2xs font-mono text-zinc-400">{res.created_at ? new Date(res.created_at).toLocaleDateString() : 'Recently'}</span>
+                              <span className="text-xs  font-semibold text-emerald-500">Resource Uploaded</span>
+                              <span className="text-2xs  text-zinc-400">{res.created_at ? new Date(res.created_at).toLocaleDateString() : 'Recently'}</span>
                             </div>
                             <p className="text-sm font-sans font-medium line-clamp-1 text-zinc-950">"{res.filename}" was compiled to classroom folders.</p>
                           </div>
@@ -432,8 +477,8 @@ const ClassroomDetail = () => {
                           </span>
                           <div className="p-4 rounded-xl border flex-1 space-y-1 bg-white border-[#eae7e4] text-zinc-700">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-mono font-semibold text-[#8c52ff]">Announcement</span>
-                              <span className="text-2xs font-mono text-zinc-400">{ann.created_at ? new Date(ann.created_at).toLocaleDateString() : ''}</span>
+                              <span className="text-xs  font-semibold text-[#8c52ff]">Announcement</span>
+                              <span className="text-2xs  text-zinc-400">{ann.created_at ? new Date(ann.created_at).toLocaleDateString() : ''}</span>
                             </div>
                             <p className="text-sm font-sans line-clamp-2 text-zinc-950">{ann.content}</p>
                           </div>
@@ -446,8 +491,8 @@ const ClassroomDetail = () => {
                           </span>
                           <div className="p-4 rounded-xl border flex-1 space-y-1 bg-white border-[#eae7e4] text-zinc-700">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-mono font-semibold text-teal-400">Quiz Published</span>
-                              <span className="text-2xs font-mono text-zinc-400">{quiz.created_at ? new Date(quiz.created_at).toLocaleDateString() : ''}</span>
+                              <span className="text-xs  font-semibold text-teal-400">Quiz Published</span>
+                              <span className="text-2xs  text-zinc-400">{quiz.created_at ? new Date(quiz.created_at).toLocaleDateString() : ''}</span>
                             </div>
                             <p className="text-sm font-sans line-clamp-1 text-zinc-950">"{quiz.title}" is now active with {quiz.question_count || 0} questions.</p>
                           </div>
@@ -530,7 +575,7 @@ const ClassroomDetail = () => {
 
             <div className="space-y-4">
               {announcements.length === 0 ? (
-                <p className="text-sm text-zinc-400 font-mono text-center py-6">No announcements shared yet.</p>
+                <p className="text-sm text-zinc-400  text-center py-6">No announcements shared yet.</p>
               ) : (
                 announcements.map((ann) => (
                   <div key={ann.id} className="border rounded-xl p-5 bg-white border-[#eae7e4]">
@@ -540,8 +585,11 @@ const ClassroomDetail = () => {
                           {(ann.teacher_name || 'T').charAt(0)}
                         </div>
                         <div>
-                          <h4 className="font-bold text-xs leading-none">{ann.teacher_name || 'Teacher'}</h4>
-                          <span className="text-3xs font-mono text-zinc-400 leading-none mt-0.5 block">
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="font-bold text-xs leading-none">{ann.teacher_name || 'Teacher'}</h4>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 leading-none">Instructor</span>
+                          </div>
+                          <span className="text-3xs  text-zinc-400 leading-none mt-0.5 block">
                             {ann.created_at ? new Date(ann.created_at).toLocaleDateString() : ''}
                           </span>
                         </div>
@@ -555,7 +603,6 @@ const ClassroomDetail = () => {
                         </button>
                       )}
                     </div>
-                    {ann.title && <p className="text-xs font-semibold text-zinc-600 mb-1">{ann.title}</p>}
                     <p className="text-sm leading-relaxed">{ann.content}</p>
                   </div>
                 ))
@@ -573,7 +620,7 @@ const ClassroomDetail = () => {
                 className="border rounded-xl p-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-end bg-white border-[#eae7e4]"
               >
                 <div className="space-y-1.5">
-                  <label className="text-2xs font-mono text-zinc-400 block">Student Name</label>
+                  <label className="text-2xs  text-zinc-400 block">Student Name</label>
                   <input
                     type="text"
                     className="w-full px-3 py-2 rounded-lg border text-xs focus:outline-none bg-[#fdfaf7] border-[#d4d2d0]"
@@ -583,7 +630,7 @@ const ClassroomDetail = () => {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-2xs font-mono text-zinc-400 block">Student Email</label>
+                  <label className="text-2xs  text-zinc-400 block">Student Email</label>
                   <input
                     type="email"
                     className="w-full px-3 py-2 rounded-lg border text-xs focus:outline-none bg-[#fdfaf7] border-[#d4d2d0]"
@@ -603,10 +650,52 @@ const ClassroomDetail = () => {
               </form>
             )}
 
+            {/* Pending Requests */}
+            {isTeacher && pendingStudents.length > 0 && (
+              <div className="border rounded-xl overflow-hidden border-[#eae7e4]">
+                <div className="px-4 py-3 bg-zinc-50 border-b border-[#eae7e4]">
+                  <span className="text-2xs  font-bold tracking-wider text-zinc-500 uppercase">
+                    Pending Requests ({pendingStudents.length})
+                  </span>
+                </div>
+                <div className="divide-y divide-zinc-100">
+                  {pendingStudents.map((student) => (
+                    <div key={student.id} className="px-4 py-3 flex items-center justify-between bg-white">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center font-extrabold text-2xs">
+                          {(student.username || student.email || '?').charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-zinc-800">{student.username || student.email}</p>
+                          <p className="text-2xs  text-zinc-400">{student.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleApproveStudent(student.id)}
+                          disabled={actionLoading === student.id}
+                          className="px-3 py-1.5 text-2xs font-bold uppercase tracking-wider rounded-lg text-white bg-[#4a7c59] hover:bg-[#3d6b4c] transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                          {actionLoading === student.id ? '...' : 'Approve'}
+                        </button>
+                        <button
+                          onClick={() => handleRejectStudent(student.id)}
+                          disabled={actionLoading === student.id}
+                          className="px-3 py-1.5 text-2xs font-bold uppercase tracking-wider rounded-lg text-zinc-500 bg-white border border-[#eae7e4] hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                          {actionLoading === student.id ? '...' : 'Reject'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="border rounded-xl overflow-hidden border-[#eae7e4]">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="text-2xs font-mono text-zinc-400 uppercase border-b bg-zinc-50 border-[#eae7e4]">
+                  <tr className="text-2xs  text-zinc-400 uppercase border-b bg-zinc-50 border-[#eae7e4]">
                     <th className="py-3 px-4">Student</th>
                     <th className="py-3 px-4">Email</th>
                     <th className="py-3 px-4">Joined</th>
@@ -615,7 +704,7 @@ const ClassroomDetail = () => {
                 <tbody className="text-xs divide-y divide-zinc-100">
                   {students.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="py-6 text-center text-zinc-400 font-mono">No students enrolled yet.</td>
+                      <td colSpan={3} className="py-6 text-center text-zinc-400 ">No students enrolled yet.</td>
                     </tr>
                   ) : (
                     students.map((student) => (
@@ -626,7 +715,7 @@ const ClassroomDetail = () => {
                           </div>
                           <span className="font-semibold">{student.username || student.email}</span>
                         </td>
-                        <td className="py-3 px-4 font-mono text-zinc-400">{student.email || '—'}</td>
+                        <td className="py-3 px-4  text-zinc-400">{student.email || '—'}</td>
                         <td className="py-3 px-4 text-zinc-400">{student.enrolled_at ? new Date(student.enrolled_at).toLocaleDateString() : '—'}</td>
                       </tr>
                     ))
@@ -663,7 +752,7 @@ const ClassroomDetail = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {resources.length === 0 ? (
-                <p className="sm:col-span-2 text-sm text-zinc-400 font-mono text-center py-6">No resources uploaded yet.</p>
+                <p className="sm:col-span-2 text-sm text-zinc-400  text-center py-6">No resources uploaded yet.</p>
               ) : (
                 resources.map((res) => (
                   <div
@@ -685,7 +774,7 @@ const ClassroomDetail = () => {
                           </button>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-3xs font-mono text-zinc-400">
+                      <div className="flex items-center gap-2 text-3xs  text-zinc-400">
                         <span className="uppercase">PDF</span>
                         <span>•</span>
                         <span>{res.file_size ? `${(res.file_size / 1024).toFixed(0)} KB` : ''}</span>
@@ -709,7 +798,7 @@ const ClassroomDetail = () => {
                 className="border rounded-xl p-5 grid grid-cols-1 sm:grid-cols-4 gap-4 items-end bg-white border-[#eae7e4]"
               >
                 <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-2xs font-mono text-zinc-400 block">Quiz Title</label>
+                  <label className="text-2xs  text-zinc-400 block">Quiz Title</label>
                   <input
                     type="text"
                     className="w-full px-3 py-2 rounded-lg border text-xs focus:outline-none bg-[#fdfaf7] border-[#d4d2d0]"
@@ -720,7 +809,7 @@ const ClassroomDetail = () => {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-2xs font-mono text-zinc-400 block">Questions</label>
+                  <label className="text-2xs  text-zinc-400 block">Questions</label>
                   <input
                     type="number"
                     min={1}
@@ -742,7 +831,7 @@ const ClassroomDetail = () => {
 
             <div className="space-y-4">
               {quizzes.length === 0 ? (
-                <p className="text-sm text-zinc-400 font-mono text-center py-6">No quizzes created yet.</p>
+                <p className="text-sm text-zinc-400  text-center py-6">No quizzes created yet.</p>
               ) : (
                 quizzes.map((quiz) => (
                   <div
@@ -751,13 +840,13 @@ const ClassroomDetail = () => {
                   >
                     <div>
                       <h5 className="font-bold text-sm tracking-tight text-zinc-900">{quiz.title}</h5>
-                      <div className="flex items-center gap-2 mt-1 text-3xs font-mono text-zinc-400">
+                      <div className="flex items-center gap-2 mt-1 text-3xs  text-zinc-400">
                         <span>{quiz.question_count || 0} Questions</span>
                         <span>•</span>
                         <span>{quiz.created_at ? new Date(quiz.created_at).toLocaleDateString() : ''}</span>
                       </div>
                     </div>
-                    <span className="px-2.5 py-0.5 rounded-full text-2xs font-mono font-bold border bg-teal-50 border-teal-200 text-teal-600">
+                    <span className="px-2.5 py-0.5 rounded-full text-2xs  font-bold border bg-teal-50 border-teal-200 text-teal-600">
                       {quiz.is_ai_generated ? 'AI Generated' : 'Published'}
                     </span>
                   </div>

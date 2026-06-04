@@ -26,7 +26,8 @@ def _check_classroom_access(classroom_id: int, user: Users, db: Session) -> Clas
     if user.role == "student":
         enrolled = db.query(Enrollment).filter(
             Enrollment.user_id == user.id,
-            Enrollment.classroom_id == classroom_id
+            Enrollment.classroom_id == classroom_id,
+            Enrollment.status == "approved"
         ).first()
         if not enrolled:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")

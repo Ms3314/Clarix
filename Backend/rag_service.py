@@ -131,7 +131,7 @@ def generate_rag_response(query: str, classroom_id: int, conversation_history: l
     context = format_context(results)
 
     try:
-        from langchain_openai import ChatOpenAI
+        from langchain_groq import ChatGroq
         from langchain_core.prompts import ChatPromptTemplate
 
         messages = [
@@ -161,10 +161,10 @@ Context:
 
         prompt = ChatPromptTemplate.from_messages(messages)
 
-        llm = ChatOpenAI(
-            model="gpt-4o-mini",
+        llm = ChatGroq(
+            model="llama-3.1-8b-instant",
             temperature=0.7,
-            api_key=os.getenv("OPENAI_API_KEY")
+            api_key=os.getenv("GROQ_API_KEY")
         )
 
         chain = prompt | llm
@@ -178,7 +178,7 @@ Context:
 
 def generate_conversation_title(query: str) -> str:
     try:
-        from langchain_openai import ChatOpenAI
+        from langchain_groq import ChatGroq
         from langchain_core.prompts import ChatPromptTemplate
 
         prompt = ChatPromptTemplate.from_messages([
@@ -186,10 +186,10 @@ def generate_conversation_title(query: str) -> str:
             ("user", "{query}")
         ])
 
-        llm = ChatOpenAI(
-            model="gpt-4o-mini",
+        llm = ChatGroq(
+            model="llama-3.1-8b-instant",
             temperature=0.3,
-            api_key=os.getenv("OPENAI_API_KEY")
+            api_key=os.getenv("GROQ_API_KEY")
         )
 
         chain = prompt | llm
