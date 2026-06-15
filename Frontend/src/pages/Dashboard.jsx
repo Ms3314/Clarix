@@ -1,31 +1,39 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Sigma, FlaskConical, Scroll, Clipboard, Check, LogIn } from 'lucide-react'
+import { Plus, Check, LogIn, FileText, Link } from 'lucide-react'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import { useSidebar } from '@/components/ui/sidebar'
-import { CreateClassroomModal } from '@/components/classroom'
-
-const iconMap = {
-  sigma: Sigma,
-  flask: FlaskConical,
-  scroll: Scroll,
-}
+import ProfilePictureAvatar from '@/components/ProfilePictureAvatar'
 
 const Dashboard = () => {
   const [user, setUser] = useState(null)
   const [classrooms, setClassrooms] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showCreateModal, setShowCreateModal] = useState(false)
   const [copiedId, setCopiedId] = useState(null)
   const [inviteCode, setInviteCode] = useState('')
   const [joining, setJoining] = useState(false)
+  const [resources, setResources] = useState([])
+  const [resourcesLoading, setResourcesLoading] = useState(false)
   const navigate = useNavigate()
   const { setOpenMobile } = useSidebar()
+
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Good morning'
+    if (hour < 18) return 'Good afternoon'
+    return 'Good evening'
+  }
 
   useEffect(() => {
     fetchClassrooms()
   }, [])
+
+  useEffect(() => {
+    if (user?.role === 'teacher') {
+      fetchTeacherResources()
+    }
+  }, [user])
 
   const fetchClassrooms = async () => {
     try {
@@ -41,14 +49,15 @@ const Dashboard = () => {
     }
   }
 
-  const handleCreateClassroom = async (data) => {
+  const fetchTeacherResources = async () => {
+    setResourcesLoading(true)
     try {
-      await api.post('/classrooms/', data)
-      toast.success('Classroom created successfully!')
-      setShowCreateModal(false)
-      fetchClassrooms()
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to create classroom')
+      const res = await api.get('/teacher/resources')
+      setResources(res.data.resources || [])
+    } catch {
+      // silently fail
+    } finally {
+      setResourcesLoading(false)
     }
   }
 
@@ -67,9 +76,10 @@ const Dashboard = () => {
     }
   }
 
-  const handleCopyCode = (e, id, code) => {
+  const handleCopyLink = (e, id, code) => {
     e.stopPropagation()
-    navigator.clipboard.writeText(code)
+    const link = `${window.location.origin}/join/${code}`
+    navigator.clipboard.writeText(link)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
   }
@@ -77,11 +87,6 @@ const Dashboard = () => {
   const handleSelect = (cls) => {
     navigate(`/classroom/${cls.id}`)
     setOpenMobile(false)
-  }
-
-  const getIcon = (iconName) => {
-    const Icon = iconMap[iconName] || Sigma
-    return <Icon className="w-4 h-4" />
   }
 
   if (loading) {
@@ -97,29 +102,19 @@ const Dashboard = () => {
       <div className="max-w-7xl mx-auto space-y-12 select-none">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between pb-6 border-b border-zinc-200 gap-4">
-          <div className="flex items-start gap-4">
-            <div>
-              <span className="text-[10px] font-bold  tracking-[0.2em] text-[#b45309] uppercase block mb-1">
-                Academic Index
-              </span>
-              <h1 className="text-4xl lg:text-5xl font-serif italic tracking-tight text-zinc-900">
-                {user?.role === 'teacher' ? 'My Classrooms' : 'Enrolled Classrooms'}
-              </h1>
-              <p className="text-xs mt-3 max-w-xl font-sans leading-relaxed text-zinc-500">
-                {user?.role === 'teacher'
-                  ? 'Select an academic folio workspace to initiate secure interactive review loops with the AI context-engine.'
-                  : 'Browse your enrolled classrooms and start learning.'}
-              </p>
-            </div>
+          <div>
+            <h1 className="text-4xl lg:text-5xl font-serif  tracking-tight text-zinc-900">
+              {getGreeting()}, {user?.username || 'there'}
+            </h1>
           </div>
 
           {user?.role === 'teacher' && (
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => navigate('/classroom/new')}
               className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest font-bold border transition-all cursor-pointer bg-[#1c1b1a] text-white border-zinc-900 hover:bg-[#faf7f3] hover:text-[#1c1b1a]"
             >
               <Plus className="w-4 h-4" />
-              New Archive
+              Add New Classroom
             </button>
           )}
         </div>
@@ -154,96 +149,139 @@ const Dashboard = () => {
                 ? 'No classrooms created yet. Create your first classroom!'
                 : 'No classrooms enrolled yet.'}
             </p>
-            {user?.role === 'teacher' && (
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="mt-4 px-5 py-3 bg-[#1c1b1a] text-white text-xs uppercase tracking-widest font-bold border border-zinc-900 cursor-pointer hover:bg-[#faf7f3] hover:text-[#1c1b1a] transition-all"
-              >
-                <Plus className="w-4 h-4 inline mr-2" />
-                Create Classroom
-              </button>
-            )}
+
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {classrooms.map((cls) => (
-            <div
-              key={cls.id}
-              onClick={() => handleSelect(cls)}
-              className="group relative border p-6 flex flex-col justify-between h-[230px] transition-all duration-300 cursor-pointer bg-white border-[#eae6e1] hover:border-zinc-900 hover:shadow-[0_4px_25px_rgba(28,27,26,0.04)]"
-            >
-              <div className="absolute top-0 right-0 w-2.5 h-2.5 border-t border-r transition-colors duration-300 border-zinc-200 group-hover:border-zinc-900" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {classrooms.map((cls) => {
+            const colors = ['#4a7c59', '#7c4a4a', '#4a5f7c', '#7c6a4a', '#4a6b7c', '#6a4a7c']
+            const fallbackColor = colors[cls.id % colors.length]
 
-              <div className="flex items-center justify-between">
-                <div className="p-2 border bg-[#faf7f3] border-[#eae6e1]">
-                  {getIcon(cls.icon || 'sigma')}
+            return (
+              <div
+                key={cls.id}
+                onClick={() => handleSelect(cls)}
+                className="group relative overflow-hidden rounded-lg border border-[#e0dcd6] transition-all duration-200 cursor-pointer bg-white hover:shadow-md hover:border-zinc-400"
+              >
+                {/* Banner */}
+                <div className="h-28 sm:h-32 relative overflow-hidden bg-zinc-200">
+                  {cls.banner ? (
+                    <img
+                      src={cls.banner}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none'
+                        e.target.parentElement.style.background = `linear-gradient(135deg, ${fallbackColor}, ${fallbackColor}dd)`
+                      }}
+                    />
+                  ) : (
+                    <div
+                      className="w-full h-full"
+                      style={{ background: `linear-gradient(135deg, ${fallbackColor}, ${fallbackColor}dd)` }}
+                    />
+                  )}
+                  {/* Ref code on banner */}
+                  
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-amber-500" />
-                  <span className="text-[9px]  uppercase tracking-wider text-zinc-400">
-                    Active
-                  </span>
+
+                {/* Content */}
+                <div className="p-4">
+                  <h3 className="text-base font-semibold text-zinc-900 leading-tight mb-0.5 group-hover:underline">
+                    {cls.name}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-2">
+                    <ProfilePictureAvatar 
+                      profilePictureUrl={cls.teacher_profile_picture}
+                      username={cls.teacher_name}
+                      size="sm"
+                    />
+                    <p className="text-xs text-zinc-500">
+                      {cls.teacher_name || 'Teacher'}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="mt-4">
-                <span className="text-[9px]  tracking-widest text-[#b45309] uppercase block mb-1">
-                  Ref. Code: {(cls.invite_code || '').split('-')[0] || 'ACAD'}
-                </span>
-                <h3 className="text-xl font-serif font-semibold italic tracking-tight leading-tight group-hover:underline decoration-amber-500/50 decoration-1 text-zinc-900">
-                  {cls.name}
-                </h3>
-              </div>
-
-              <div className="space-y-2 pt-4 border-t border-[#eae6e1]/75">
-                <div className="flex items-center justify-between text-xs ">
-                  <span className="uppercase tracking-wider text-[9px] text-zinc-400">Enrolled</span>
-                  <span className="px-2 py-0.5 font-bold  border text-[10px] bg-[#faf7f3] border-zinc-150 text-zinc-800">
+                {/* Bottom bar */}
+                <div className="px-4 pb-3 flex items-center justify-between">
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider">
                     {cls.student_count || 0} students
                   </span>
-                </div>
-
-                <div className="flex items-center justify-between text-xs ">
-                  <span className="uppercase tracking-wider text-[9px] text-zinc-400">Code</span>
                   <button
-                    onClick={(e) => handleCopyCode(e, cls.id, cls.invite_code)}
-                    className="flex items-center gap-2 px-2 py-1 border font-medium cursor-pointer transition-all bg-[#faf7f3] hover:bg-white border-zinc-250 text-zinc-800"
-                    title="Copy Invite Code"
+                    onClick={(e) => handleCopyLink(e, cls.id, cls.invite_code)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded border border-[#e0dcd6] text-zinc-600 hover:bg-zinc-50 hover:border-zinc-400 transition-all cursor-pointer"
+                    title="Copy Join Link"
                   >
-                    <span className=" text-[11px] tracking-wider">{cls.invite_code}</span>
                     {copiedId === cls.id ? (
-                      <Check className="w-3 h-3 text-emerald-500" />
+                      <>
+                        <Check className="w-3 h-3 text-emerald-500" />
+                        Copied
+                      </>
                     ) : (
-                      <Clipboard className="w-3 h-3 opacity-60" />
+                      <>
+                        <Link className="w-3 h-3" />
+                        Copy Link
+                      </>
                     )}
                   </button>
                 </div>
               </div>
-            </div>
-          ))}
-
-          {user?.role === 'teacher' && (
-            <div
-              onClick={() => setShowCreateModal(true)}
-              className="border border-dashed p-6 flex flex-col justify-center items-center h-[230px] cursor-pointer transition-all duration-300 select-none group border-[#eae6e1] hover:border-zinc-900 bg-transparent hover:bg-white text-zinc-500"
-            >
-              <div className="p-3.5 mb-3 transition-all duration-300 group-hover:scale-105 border bg-[#faf7f3] text-zinc-800 border-[#eae6e1]">
-                <Plus className="w-4 h-4" />
-              </div>
-              <p className="font-serif font-semibold italic text-base tracking-tight mb-0.5">Catalog New Folio</p>
-              <span className="text-[9px] uppercase  tracking-widest opacity-60">Initialize syllabus</span>
-            </div>
-          )}
+            )
+          })}
         </div>
+
+        {/* Uploaded Documents - Teacher Only */}
+        {user?.role === 'teacher' && (
+          <div className="pt-4">
+            <div className="flex items-center gap-2 mb-6">
+              <FileText className="w-4 h-4 text-zinc-500" />
+              <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-600">
+                Uploaded Documents
+              </h2>
+              {!resourcesLoading && (
+                <span className="text-[10px] px-2 py-0.5 border bg-[#faf7f3] text-zinc-500">
+                  {resources.length} total
+                </span>
+              )}
+            </div>
+
+            {resourcesLoading ? (
+              <div className="text-sm text-zinc-400">Loading...</div>
+            ) : resources.length === 0 ? (
+              <div className="text-sm text-zinc-400 py-8 text-center border border-dashed border-[#eae6e1]">
+                No documents uploaded yet. Upload PDFs in any classroom to see them here.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {resources.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex items-center gap-3 p-3 border bg-white border-[#eae6e1] hover:border-zinc-300 transition-colors"
+                  >
+                    <div className="p-2 border bg-[#faf7f3] border-[#eae6e1] shrink-0">
+                      <FileText className="w-3.5 h-3.5 text-zinc-600" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-zinc-800 truncate">
+                        {doc.filename}
+                      </p>
+                      <p className="text-[10px] text-zinc-400 uppercase tracking-wider mt-0.5">
+                        {doc.classroom_name}
+                        {doc.file_size && ` · ${(doc.file_size / 1024).toFixed(0)} KB`}
+                      </p>
+                    </div>
+                    <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 border ${doc.indexed ? 'text-emerald-600 border-emerald-200 bg-emerald-50' : 'text-amber-600 border-amber-200 bg-amber-50'}`}>
+                      {doc.indexed ? 'Indexed' : 'Pending'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {showCreateModal && (
-        <CreateClassroomModal
-          onClose={() => setShowCreateModal(false)}
-          onSave={handleCreateClassroom}
-        />
-      )}
     </div>
   )
 }

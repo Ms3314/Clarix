@@ -14,15 +14,29 @@ class Users(Base):
     role = Column(String, default='student')  # 'teacher' or 'student'
     unique_id = Column(String, unique=True, default=lambda: str(uuid.uuid4())[:8])
     is_active = Column(Boolean, default=True)
+    profile_picture_url = Column(String, nullable=True)
+    profile_picture_updated_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     classrooms_created = relationship("Classroom", back_populates="teacher")
+    co_teaching_links = relationship("ClassroomTeacher", back_populates="teacher")
     enrollments = relationship("Enrollment", back_populates="student")
     quiz_attempts = relationship("QuizAttempt", back_populates="student")
     flashcards_created = relationship("Flashcard", back_populates="creator")
     quizzes_created = relationship("Quiz", back_populates="creator")
     announcements_made = relationship("Announcement", back_populates="teacher")
+
+class ClassroomTeacher(Base):
+    __tablename__ = 'classroom_teachers'
+
+    id = Column(Integer, primary_key=True, index=True)
+    classroom_id = Column(Integer, ForeignKey('classrooms.id'), nullable=False)
+    teacher_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+
+    classroom = relationship("Classroom", back_populates="co_teacher_links")
+    teacher = relationship("Users", back_populates="co_teaching_links")
+
 
 class Classroom(Base):
     __tablename__ = 'classrooms'
@@ -30,14 +44,20 @@ class Classroom(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
+    subject = Column(String, nullable=True)
+    icon = Column(String, default='sigma')
+    banner = Column(String, nullable=True)
+    is_public = Column(Boolean, default=False)
     teacher_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     invite_code = Column(String, unique=True, default=lambda: str(uuid.uuid4())[:6].upper())
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     teacher = relationship("Users", back_populates="classrooms_created")
+    co_teacher_links = relationship("ClassroomTeacher", back_populates="classroom", cascade="all, delete-orphan")
     enrollments = relationship("Enrollment", back_populates="classroom", cascade="all, delete-orphan")
     resources = relationship("Resource", back_populates="classroom", cascade="all, delete-orphan")
+    folders = relationship("Folder", back_populates="classroom", cascade="all, delete-orphan")
     quizzes = relationship("Quiz", back_populates="classroom", cascade="all, delete-orphan")
     flashcards = relationship("Flashcard", back_populates="classroom", cascade="all, delete-orphan")
     announcements = relationship("Announcement", back_populates="classroom", cascade="all, delete-orphan")
@@ -55,11 +75,27 @@ class Enrollment(Base):
     student = relationship("Users", back_populates="enrollments")
     classroom = relationship("Classroom", back_populates="enrollments")
 
+class Folder(Base):
+    __tablename__ = 'folders'
+
+    id = Column(Integer, primary_key=True, index=True)
+    classroom_id = Column(Integer, ForeignKey('classrooms.id'), nullable=False)
+    name = Column(String, nullable=False)
+    parent_id = Column(Integer, ForeignKey('folders.id'), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    classroom = relationship("Classroom")
+    parent = relationship("Folder", remote_side=[id], back_populates="children")
+    children = relationship("Folder", back_populates="parent", cascade="all, delete-orphan")
+    resources = relationship("Resource", back_populates="folder", cascade="all, delete-orphan")
+
+
 class Resource(Base):
     __tablename__ = 'resources'
 
     id = Column(Integer, primary_key=True, index=True)
     classroom_id = Column(Integer, ForeignKey('classrooms.id'), nullable=False)
+    folder_id = Column(Integer, ForeignKey('folders.id'), nullable=True)
     filename = Column(String, nullable=False)
     file_path = Column(String, nullable=False)
     file_size = Column(Integer, nullable=True)
@@ -69,6 +105,7 @@ class Resource(Base):
 
     # Relationships
     classroom = relationship("Classroom", back_populates="resources")
+    folder = relationship("Folder", back_populates="resources")
 
 class Quiz(Base):
     __tablename__ = 'quizzes'

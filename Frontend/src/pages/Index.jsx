@@ -24,7 +24,13 @@ export default () => {
           password: formData.password,
         });
         localStorage.setItem("clarix_token", response.data.access_token);
-        navigate("/dashboard");
+        const redirectCode = localStorage.getItem('join_redirect')
+        if (redirectCode) {
+          localStorage.removeItem('join_redirect')
+          navigate(`/join/${redirectCode}`)
+        } else {
+          navigate("/dashboard")
+        }
       } else {
         await api.post("/auth/signup", {
           username: formData.username,
