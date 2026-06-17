@@ -520,7 +520,7 @@ const Learn = () => {
                 <RefreshCw className="w-4 h-4 animate-spin" />
               </div>
               <div className="flex-1 p-4 rounded-2xl bg-[#faf7f3]/50">
-                <span className="text-sm text-zinc-400 italic">Thinking...</span>
+                <span className="text-sm text-zinc-400 ">Thinking...</span>
               </div>
             </div>
           )}

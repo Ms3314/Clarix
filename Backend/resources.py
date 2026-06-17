@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from typing import Annotated
+from typing import Annotated, Optional
 from pydantic import BaseModel
 from Backend.auth import get_current_teacher, get_current_user
-from Backend.models import Users, Classroom, Resource, ChatSession, ChatMessage
+from Backend.models import Users, Classroom, Resource, Folder, ChatSession, ChatMessage
 from Backend.Database import get_db
-from Backend.rag_service import index_resource_from_url, generate_rag_response, generate_conversation_title
+from Backend.rag_service import index_resource, generate_rag_response, generate_conversation_title
 import os
+import tempfile
+import time
 from datetime import datetime
 
 router = APIRouter(
@@ -14,7 +16,7 @@ router = APIRouter(
     tags=["resources"]
 )
 
-BUCKET_NAME = "resources"
+BUCKET_NAME = "classroom-resources"
 
 _supabase_client = None
 
@@ -35,15 +37,17 @@ def get_supabase_client():
     return _supabase_client
 
 
-class UploadUrlRequest(BaseModel):
-    filename: str
-    file_size: int
+def _upload_to_supabase(file_bytes: bytes, file_path: str, content_type: str) -> str:
+    supabase = get_supabase_client()
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
 
-
-class CreateResourceRequest(BaseModel):
-    filename: str
-    file_size: int
-    file_path: str
+    supabase.storage.from_(BUCKET_NAME).upload(
+        file_path, file_bytes,
+        {"content-type": content_type, "upsert": "true"}
+    )
+    supabase_url = os.getenv("SUPABASE_URL")
+    return f"{supabase_url}/storage/v1/object/public/{BUCKET_NAME}/{file_path}"
 
 
 class ChatRequest(BaseModel):
@@ -62,6 +66,24 @@ class UpdateResourceRequest(BaseModel):
     filename: str
 
 
+class CreateFolderRequest(BaseModel):
+    name: str
+    parent_id: int | None = None
+
+
+class RenameFolderRequest(BaseModel):
+    name: str
+
+
+class MoveResourceRequest(BaseModel):
+    folder_id: int | None = None
+
+
+class BatchMoveItem(BaseModel):
+    resource_id: int
+    folder_id: int | None = None
+
+
 def get_resource_response(resource: Resource):
     return {
         "id": resource.id,
@@ -70,14 +92,131 @@ def get_resource_response(resource: Resource):
         "indexed": resource.indexed,
         "created_at": resource.created_at,
         "classroom_id": resource.classroom_id,
+        "folder_id": resource.folder_id,
         "file_url": resource.file_path,
     }
 
 
-@router.post("/{classroom_id}/resources/generate-upload-url")
-async def generate_upload_url(
+def _check_teacher_access(classroom_id: int, teacher_id: int, db: Session):
+    from Backend.models import ClassroomTeacher
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(status_code=404, detail="Classroom not found")
+    if classroom.teacher_id == teacher_id:
+        return classroom
+    ct = db.query(ClassroomTeacher).filter(
+        ClassroomTeacher.classroom_id == classroom_id,
+        ClassroomTeacher.teacher_id == teacher_id
+    ).first()
+    if ct:
+        return classroom
+    raise HTTPException(status_code=403, detail="Access denied")
+
+
+# ── Folder endpoints ──
+
+@router.get("/{classroom_id}/folders")
+async def list_folders(
     classroom_id: int,
-    request: UploadUrlRequest,
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    _check_teacher_access(classroom_id, teacher.id, db)
+    folders = db.query(Folder).filter(Folder.classroom_id == classroom_id).all()
+    return {"folders": [{"id": f.id, "name": f.name, "parent_id": f.parent_id, "created_at": f.created_at} for f in folders]}
+
+
+@router.post("/{classroom_id}/folders", status_code=201)
+async def create_folder(
+    classroom_id: int,
+    request: CreateFolderRequest,
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    _check_teacher_access(classroom_id, teacher.id, db)
+    folder = Folder(classroom_id=classroom_id, name=request.name, parent_id=request.parent_id)
+    db.add(folder)
+    db.commit()
+    db.refresh(folder)
+    return {"id": folder.id, "name": folder.name, "parent_id": folder.parent_id}
+
+
+@router.put("/{classroom_id}/folders/{folder_id}")
+async def rename_folder(
+    classroom_id: int,
+    folder_id: int,
+    request: RenameFolderRequest,
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    _check_teacher_access(classroom_id, teacher.id, db)
+    folder = db.query(Folder).filter(Folder.id == folder_id, Folder.classroom_id == classroom_id).first()
+    if not folder:
+        raise HTTPException(status_code=404, detail="Folder not found")
+    folder.name = request.name
+    db.commit()
+    return {"message": "Folder renamed"}
+
+
+@router.delete("/{classroom_id}/folders/{folder_id}")
+async def delete_folder(
+    classroom_id: int,
+    folder_id: int,
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    _check_teacher_access(classroom_id, teacher.id, db)
+    folder = db.query(Folder).filter(Folder.id == folder_id, Folder.classroom_id == classroom_id).first()
+    if not folder:
+        raise HTTPException(status_code=404, detail="Folder not found")
+    # Move all resources and sub-folders to parent (or root)
+    db.query(Resource).filter(Resource.folder_id == folder_id).update({"folder_id": folder.parent_id})
+    db.query(Folder).filter(Folder.parent_id == folder_id).update({"parent_id": folder.parent_id})
+    db.delete(folder)
+    db.commit()
+    return {"message": "Folder deleted"}
+
+
+# ── Resource move endpoints ──
+
+@router.put("/{classroom_id}/resources/{resource_id}/move")
+async def move_resource(
+    classroom_id: int,
+    resource_id: int,
+    request: MoveResourceRequest,
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    _check_teacher_access(classroom_id, teacher.id, db)
+    resource = db.query(Resource).filter(Resource.id == resource_id, Resource.classroom_id == classroom_id).first()
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    resource.folder_id = request.folder_id
+    db.commit()
+    return {"message": "Resource moved"}
+
+
+@router.put("/{classroom_id}/resources/move-batch")
+async def move_resources_batch(
+    classroom_id: int,
+    request: list[BatchMoveItem],
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    _check_teacher_access(classroom_id, teacher.id, db)
+    for item in request:
+        resource = db.query(Resource).filter(Resource.id == item.resource_id, Resource.classroom_id == classroom_id).first()
+        if resource:
+            resource.folder_id = item.folder_id
+    db.commit()
+    return {"message": "Resources moved"}
+
+
+@router.post("/{classroom_id}/resources/upload", status_code=status.HTTP_201_CREATED)
+async def upload_resource(
+    classroom_id: int,
+    file: UploadFile = File(...),
+    folder_id: Optional[int] = Form(None),
     teacher: Users = Depends(get_current_teacher),
     db: Session = Depends(get_db)
 ):
@@ -88,57 +227,47 @@ async def generate_upload_url(
     if not classroom:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
 
-    if not request.filename.lower().endswith(".pdf"):
+    if folder_id:
+        folder = db.query(Folder).filter(Folder.id == folder_id, Folder.classroom_id == classroom_id).first()
+        if not folder:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Folder not found")
+
+    if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF files are allowed")
 
-    supabase_url = os.getenv("SUPABASE_URL")
-    if not supabase_url or "your-project" in supabase_url:
-        raise HTTPException(
-            status_code=503,
-            detail="Supabase storage not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY in .env"
-        )
-    
-    import time
+    file_bytes = await file.read()
+    file_size = len(file_bytes)
     timestamp = int(time.time() * 1000)
-    file_path = f"public/{timestamp}-{request.filename}"
-    upload_url = f"{supabase_url}/storage/v1/object/{BUCKET_NAME}/{file_path}"
+    file_path = f"public/{timestamp}-{file.filename}"
 
-    return {"upload_url": upload_url, "file_path": file_path}
-
-
-@router.post("/{classroom_id}/resources")
-async def create_resource(
-    classroom_id: int,
-    request: CreateResourceRequest,
-    teacher: Users = Depends(get_current_teacher),
-    db: Session = Depends(get_db)
-):
-    classroom = db.query(Classroom).filter(
-        Classroom.id == classroom_id,
-        Classroom.teacher_id == teacher.id
-    ).first()
-    if not classroom:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classroom not found")
-
-    if not request.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF files are allowed")
-
-    supabase_url = os.getenv("SUPABASE_URL")
-    full_url = f"{supabase_url}/storage/v1/object/public/{BUCKET_NAME}/{request.file_path}"
+    full_url = _upload_to_supabase(file_bytes, file_path, "application/pdf")
 
     resource = Resource(
         classroom_id=classroom_id,
-        filename=request.filename,
+        folder_id=folder_id,
+        filename=file.filename,
         file_path=full_url,
-        file_size=request.file_size,
+        file_size=file_size,
         indexed=False
     )
     db.add(resource)
     db.commit()
     db.refresh(resource)
 
-    # Download from Supabase → detect handwriting → OCR or text extract → index in Chroma
-    indexed = index_resource_from_url(full_url, classroom_id, resource.id)
+    # Index the resource
+    indexed = False
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp.write(file_bytes)
+            tmp_path = tmp.name
+
+        indexed = index_resource(tmp_path, classroom_id, resource.id)
+        os.remove(tmp_path)
+    except Exception as e:
+        print(f"[Resources] Error indexing resource: {e}")
+        import traceback
+        traceback.print_exc()
+
     resource.indexed = indexed
     resource.indexed_at = datetime.utcnow() if indexed else None
     db.commit()

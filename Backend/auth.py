@@ -43,6 +43,7 @@ class UserResponse(BaseModel):
     role: str
     unique_id: str
     is_active: bool
+    profile_picture_url: str | None = None
 
 class Token(BaseModel):
     access_token: str
@@ -181,5 +182,6 @@ async def get_me(user: dict = Depends(get_current_user)):
         'email': user.email,
         'role': user.role,
         'unique_id': user.unique_id,
-        'is_active': user.is_active
+        'is_active': user.is_active,
+        'profile_picture_url': user.profile_picture_url
     }

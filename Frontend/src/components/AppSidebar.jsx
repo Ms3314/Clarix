@@ -7,6 +7,7 @@ import {
   BookOpen,
   BookOpenText,
   GraduationCap,
+  Settings,
 } from "lucide-react"
 import {
   Sidebar,
@@ -28,22 +29,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import ProfilePictureAvatar from "@/components/ProfilePictureAvatar"
+import { useAuth } from "@/contexts/AuthContext"
 import api from "@/lib/api"
 
 export const AppSidebar = ({ ...props }) => {
   const navigate = useNavigate()
   const location = useLocation()
-  const [user, setUser] = useState(null)
+  const { user, refreshUser } = useAuth()
   const [classrooms, setClassrooms] = useState([])
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [userRes, classroomsRes] = await Promise.all([
-          api.get("/auth/me"),
-          api.get("/classrooms/"),
-        ])
-        setUser(userRes.data)
+        await refreshUser()
+        const classroomsRes = await api.get("/classrooms/")
         setClassrooms(classroomsRes.data.classrooms || [])
       } catch {
         console.error("Failed to fetch sidebar data")
@@ -69,8 +69,8 @@ export const AppSidebar = ({ ...props }) => {
               <div className="flex items-center gap-2.5">
                 <img src="/icon.png" className="w-8 h-8 rounded-lg object-contain" />
                 <div className="flex flex-col leading-none">
-                  <span className="font-bold text-base tracking-tight">Clarix</span>
-                  <span className="text-[10px] text-[#6b6a68] ">AI Classroom</span>
+                  <span className="font-bold text-base text-[17px] tracking-tight">Clarix</span>
+                  {/* <span className="text-[10px] text-[#6b6a68] ">AI Classroom</span> */}
                 </div>
               </div>
             </SidebarMenuButton>
@@ -164,9 +164,11 @@ export const AppSidebar = ({ ...props }) => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton size="lg" className="rounded-lg hover:bg-[#f0eae3] transition-colors">
-                  <div className="w-8 h-8 rounded-lg bg-[#f0eae3] flex items-center justify-center text-sm font-semibold text-[#4a7c59]">
-                    {user?.username?.[0]?.toUpperCase() || "U"}
-                  </div>
+                  <ProfilePictureAvatar 
+                    profilePictureUrl={user?.profile_picture_url}
+                    username={user?.username}
+                    size="sm"
+                  />
                   <div className="flex flex-col gap-0.5 leading-none text-left">
                     <span className="font-semibold text-sm text-[#1c1b1a]">{user?.username || "User"}</span>
                     <span className="text-[10px] text-[#6b6a68] font-medium capitalize">{user?.role}</span>
@@ -180,6 +182,13 @@ export const AppSidebar = ({ ...props }) => {
                 sideOffset={4}
                 className="w-[200px] rounded-xl border border-[#e8e4e0] bg-white shadow-lg p-1"
               >
+                <DropdownMenuItem
+                  onClick={() => navigate("/settings")}
+                  className="rounded-lg text-sm text-[#4a4948] hover:bg-[#f0eae3] cursor-pointer"
+                >
+                  <Settings className="mr-2 w-4 h-4" />
+                  Settings
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={handleLogout}
                   className="rounded-lg text-sm text-[#4a4948] hover:bg-[#f0eae3] cursor-pointer"
