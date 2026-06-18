@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import {
   LayoutDashboard,
@@ -6,7 +6,6 @@ import {
   ChevronDown,
   BookOpen,
   BookOpenText,
-  GraduationCap,
   Settings,
 } from "lucide-react"
 import {
@@ -30,30 +29,24 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import ProfilePictureAvatar from "@/components/ProfilePictureAvatar"
-import { useAuth } from "@/contexts/AuthContext"
-import api from "@/lib/api"
+import useAuthStore from "@/stores/authStore"
+import useClassroomStore from "@/stores/classroomStore"
 
 export const AppSidebar = ({ ...props }) => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, refreshUser } = useAuth()
-  const [classrooms, setClassrooms] = useState([])
+  const user = useAuthStore((s) => s.user)
+  const logout = useAuthStore((s) => s.logout)
+  const fetchUser = useAuthStore((s) => s.fetchUser)
+  const { classrooms, fetchClassrooms } = useClassroomStore()
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        await refreshUser()
-        const classroomsRes = await api.get("/classrooms/")
-        setClassrooms(classroomsRes.data.classrooms || [])
-      } catch {
-        console.error("Failed to fetch sidebar data")
-      }
-    }
-    fetchData()
+    fetchUser()
+    fetchClassrooms()
   }, [])
 
   const handleLogout = () => {
-    localStorage.removeItem("clarix_token")
+    logout()
     navigate("/")
   }
 
@@ -70,7 +63,6 @@ export const AppSidebar = ({ ...props }) => {
                 <img src="/icon.png" className="w-8 h-8 rounded-lg object-contain" />
                 <div className="flex flex-col leading-none">
                   <span className="font-bold text-base text-[17px] tracking-tight">Clarix</span>
-                  {/* <span className="text-[10px] text-[#6b6a68] ">AI Classroom</span> */}
                 </div>
               </div>
             </SidebarMenuButton>

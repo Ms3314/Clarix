@@ -5,11 +5,14 @@ import api from '@/lib/api'
 import { toast } from 'sonner'
 import { useSidebar } from '@/components/ui/sidebar'
 import ProfilePictureAvatar from '@/components/ProfilePictureAvatar'
+import useAuthStore from '@/stores/authStore'
+import useClassroomStore from '@/stores/classroomStore'
 
 const Dashboard = () => {
-  const [user, setUser] = useState(null)
-  const [classrooms, setClassrooms] = useState([])
-  const [loading, setLoading] = useState(true)
+  const user = useAuthStore((s) => s.user)
+  const fetchUser = useAuthStore((s) => s.fetchUser)
+  const { classrooms, fetchClassrooms, invalidate: invalidateClassrooms } = useClassroomStore()
+  const [pageLoading, setPageLoading] = useState(true)
   const [copiedId, setCopiedId] = useState(null)
   const [inviteCode, setInviteCode] = useState('')
   const [joining, setJoining] = useState(false)
@@ -26,7 +29,11 @@ const Dashboard = () => {
   }
 
   useEffect(() => {
-    fetchClassrooms()
+    const init = async () => {
+      await Promise.all([fetchUser(), fetchClassrooms()])
+      setPageLoading(false)
+    }
+    init()
   }, [])
 
   useEffect(() => {
@@ -34,20 +41,6 @@ const Dashboard = () => {
       fetchTeacherResources()
     }
   }, [user])
-
-  const fetchClassrooms = async () => {
-    try {
-      const userRes = await api.get('/auth/me')
-      setUser(userRes.data)
-      const res = await api.get('/classrooms/')
-      setClassrooms(res.data.classrooms || [])
-    } catch (error) {
-      toast.error('Failed to load dashboard')
-      if (error.response?.status === 401) navigate('/')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const fetchTeacherResources = async () => {
     setResourcesLoading(true)
@@ -89,7 +82,7 @@ const Dashboard = () => {
     setOpenMobile(false)
   }
 
-  if (loading) {
+  if (pageLoading) {
     return (
       <div className="flex items-center justify-center p-12 min-h-[60vh]">
         <div className="text-lg text-zinc-400">Loading...</div>

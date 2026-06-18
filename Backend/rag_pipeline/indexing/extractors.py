@@ -58,16 +58,25 @@ def extract_text_with_ocr(pdf_path: str) -> List[dict]:
 
 def extract_text(pdf_path: str, is_handwritten: bool = False) -> List[dict]:
     """
-    Extract text from PDF based on type.
+    Extract text from PDF based on type, with fallback.
+    
+    If the primary method returns no results, falls back to the
+    alternative method to handle edge cases (scanned PDFs detected
+    as text, or text PDFs detected as handwritten).
     
     Args:
         pdf_path: Path to PDF file
-        is_handwritten: If True, use OCR; else use direct text extraction
+        is_handwritten: If True, try OCR first; else try direct text first
     
     Returns:
         List of dicts with 'page', 'text', 'source', 'type'
     """
     if is_handwritten:
-        return extract_text_with_ocr(pdf_path)
+        pages = extract_text_with_ocr(pdf_path)
+        if not pages:
+            pages = extract_text_from_pdf(pdf_path)
     else:
-        return extract_text_from_pdf(pdf_path)
+        pages = extract_text_from_pdf(pdf_path)
+        if not pages:
+            pages = extract_text_with_ocr(pdf_path)
+    return pages

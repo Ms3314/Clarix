@@ -1,7 +1,11 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
-CHROMA_COLLECTION_NAME = "classroom_resources"
+CHROMA_COLLECTION_PREFIX = "classroom_"
+
+env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
 
 def get_embeddings():
@@ -9,23 +13,29 @@ def get_embeddings():
     return SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
 
 
-def get_chroma_client(classroom_id: int):
-    from langchain_community.vectorstores import Chroma
-    persist_directory = f"./chroma_db/classroom_{classroom_id}"
-    os.makedirs(persist_directory, exist_ok=True)
+def get_chroma_client():
+    import chromadb
+    api_key = os.getenv("CHROMA_API_KEY")
+    if not api_key:
+        raise ValueError("CHROMA_API_KEY not found in .env")
+    return chromadb.CloudClient(
+        tenant="dbf4a556-9827-4d33-b941-82278f0bb043",
+        database="clarix",
+        api_key=api_key,
+    )
+
+
+def get_vectorstore(classroom_id: int):
+    from langchain_chroma import Chroma
+    collection_name = f"{CHROMA_COLLECTION_PREFIX}{classroom_id}"
     return Chroma(
-        collection_name=f"{CHROMA_COLLECTION_NAME}_{classroom_id}",
+        collection_name=collection_name,
         embedding_function=get_embeddings(),
-        persist_directory=persist_directory
+        client=get_chroma_client(),
     )
 
 
 def index_resource(file_path: str, classroom_id: int, resource_id: int) -> bool:
-    """
-    Index a PDF resource into ChromaDB.
-    Automatically detects handwritten PDFs and uses OCR (Tesseract) for those,
-    and PyMuPDF direct-text extraction for regular text-based PDFs.
-    """
     try:
         from Backend.rag_pipeline.indexing.detector import is_handwritten
         from Backend.rag_pipeline.indexing.extractors import extract_text
@@ -47,13 +57,12 @@ def index_resource(file_path: str, classroom_id: int, resource_id: int) -> bool:
             print(f"[RAG] No chunks created from {file_path}")
             return False
 
-        # Attach classroom and resource metadata to every chunk
         for doc in documents:
             doc.metadata["classroom_id"] = classroom_id
             doc.metadata["resource_id"] = resource_id
 
-        print(f"[RAG] Indexing {len(documents)} chunks into Chroma for classroom {classroom_id}")
-        vectorstore = get_chroma_client(classroom_id)
+        print(f"[RAG] Indexing {len(documents)} chunks into cloud Chroma collection for classroom {classroom_id}")
+        vectorstore = get_vectorstore(classroom_id)
         vectorstore.add_documents(documents)
 
         print(f"[RAG] Successfully indexed resource {resource_id}")
@@ -67,9 +76,6 @@ def index_resource(file_path: str, classroom_id: int, resource_id: int) -> bool:
 
 
 def index_resource_from_url(url: str, classroom_id: int, resource_id: int) -> bool:
-    """
-    Download a PDF from a URL, then index it using the OCR-aware pipeline.
-    """
     import tempfile
     import httpx
     try:
@@ -93,12 +99,8 @@ def index_resource_from_url(url: str, classroom_id: int, resource_id: int) -> bo
 
 def query_resources(query: str, classroom_id: int, k: int = 4):
     try:
-        vectorstore = get_chroma_client(classroom_id)
-        results = vectorstore.similarity_search(
-            query,
-            k=k,
-            filter={"classroom_id": classroom_id}
-        )
+        vectorstore = get_vectorstore(classroom_id)
+        results = vectorstore.similarity_search(query, k=k)
         return results
     except Exception as e:
         print(f"[RAG] Error querying resources: {e}")

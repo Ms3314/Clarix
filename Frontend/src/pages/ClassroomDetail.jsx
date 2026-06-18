@@ -8,44 +8,51 @@ import {
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import { Document, Page, pdfjs } from 'react-pdf'
+import useAuthStore from '@/stores/authStore'
+import useClassroomDetailStore from '@/stores/classroomDetailStore'
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
 
 const ClassroomDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [classroom, setClassroom] = useState(null)
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('Overview')
-  const [students, setStudents] = useState([])
-  const [resources, setResources] = useState([])
-  const [quizzes, setQuizzes] = useState([])
-  const [announcements, setAnnouncements] = useState([])
+  const numericId = Number(id)
 
+  const user = useAuthStore((s) => s.user)
+  const fetchUser = useAuthStore((s) => s.fetchUser)
+  const {
+    getEntityData, getEntityError, fetchAll, fetchPending: fetchPendingStore,
+    invalidateEntity, setEntityData,
+    fetchStudents: fetchStudentsStore, fetchResources: fetchResourcesStore,
+    fetchQuizzes: fetchQuizzesStore, fetchAnnouncements: fetchAnnouncementsStore,
+    fetchFolders: fetchFoldersStore,
+  } = useClassroomDetailStore()
+
+  const classroom = getEntityData(numericId, 'classroom')
+  const students = getEntityData(numericId, 'students') || []
+  const resources = getEntityData(numericId, 'resources') || []
+  const quizzes = getEntityData(numericId, 'quizzes') || []
+  const announcements = getEntityData(numericId, 'announcements') || []
+  const folders = getEntityData(numericId, 'folders') || []
+  const pendingStudents = getEntityData(numericId, 'pending') || []
+
+  const [pageLoading, setPageLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('Overview')
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
-
   const [announcementMsg, setAnnouncementMsg] = useState('')
   const [announcementPosting, setAnnouncementPosting] = useState(false)
-
   const [studentName, setStudentName] = useState('')
   const [studentEmail, setStudentEmail] = useState('')
   const [inviteLoading, setInviteLoading] = useState(false)
-
   const [uploading, setUploading] = useState(false)
   const [resourceFile, setResourceFile] = useState(null)
-  const [pendingStudents, setPendingStudents] = useState([])
   const [actionLoading, setActionLoading] = useState(null)
-
   const [quizTitle, setQuizTitle] = useState('')
   const [quizQuestions, setQuizQuestions] = useState(5)
   const [quizCreating, setQuizCreating] = useState(false)
-
   const [generatingAI, setGeneratingAI] = useState(false)
   const [aiMaterial, setAiMaterial] = useState(null)
   const [showAIModal, setShowAIModal] = useState(false)
-
-  const [folders, setFolders] = useState([])
   const [selectedFolderId, setSelectedFolderId] = useState(null)
   const [viewingResource, setViewingResource] = useState(null)
   const [folderNameInput, setFolderNameInput] = useState('')
@@ -54,93 +61,32 @@ const ClassroomDetail = () => {
   const [dragOverFolderId, setDragOverFolderId] = useState(null)
 
   useEffect(() => {
-    fetchAll()
-  }, [id])
+    const fetchAllData = async () => {
+      setPageLoading(true)
+      try {
+        await Promise.all([fetchUser(), fetchAll(numericId)])
+      } catch (error) {
+        toast.error('Failed to load classroom')
+        if (error.response?.status === 401) navigate('/')
+      } finally {
+        setPageLoading(false)
+      }
+    }
+    fetchAllData()
+  }, [numericId])
 
   useEffect(() => {
-    if (activeTab === 'Students' && classroom && user?.role === 'teacher') {
-      fetchPending(classroom)
+    if (activeTab === 'Students' && user?.role === 'teacher') {
+      fetchPendingStore(numericId, true)
     }
-  }, [activeTab, classroom?.id, user?.role])
-
-  const fetchAll = async () => {
-    setLoading(true)
-    try {
-      const [userRes, classRes] = await Promise.all([
-        api.get('/auth/me'),
-        api.get(`/classrooms/${id}`),
-      ])
-      setUser(userRes.data)
-      const cls = { ...classRes.data, icon: classRes.data.icon || 'sigma' }
-      setClassroom(cls)
-      setEditName(cls.name)
-
-      await Promise.all([
-        fetchStudents(cls),
-        fetchResources(cls),
-        fetchQuizzes(cls),
-        fetchAnnouncements(cls),
-        fetchFolders(cls),
-      ])
-      fetchPending(cls, userRes.data)
-    } catch (error) {
-      toast.error('Failed to load classroom')
-      if (error.response?.status === 401) navigate('/')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchStudents = async (cls) => {
-    try {
-      const res = await api.get(`/classrooms/${cls.id}/students`)
-      setStudents(res.data.students || [])
-    } catch { setStudents([]) }
-  }
-
-  const fetchPending = async (cls, userData) => {
-    const currentUser = userData || user
-    if (currentUser?.role !== 'teacher') return
-    try {
-      const res = await api.get(`/classrooms/${cls.id}/pending`)
-      setPendingStudents(res.data.pending || [])
-    } catch { setPendingStudents([]) }
-  }
-
-  const fetchResources = async (cls) => {
-    try {
-      const res = await api.get(`/classrooms/${cls.id}/resources`)
-      setResources(res.data.resources || [])
-    } catch { setResources([]) }
-  }
-
-  const fetchQuizzes = async (cls) => {
-    try {
-      const res = await api.get(`/classrooms/${cls.id}/quizzes`)
-      setQuizzes(res.data.quizzes || [])
-    } catch { setQuizzes([]) }
-  }
-
-  const fetchAnnouncements = async (cls) => {
-    try {
-      const res = await api.get(`/classrooms/${cls.id}/announcements`)
-      setAnnouncements(res.data.announcements || [])
-    } catch { setAnnouncements([]) }
-  }
-
-  const fetchFolders = async (cls) => {
-    try {
-      const res = await api.get(`/classrooms/${cls.id}/folders`)
-      setFolders(res.data.folders || [])
-    } catch { setFolders([]) }
-  }
+  }, [activeTab, numericId, user?.role])
 
   const saveEditedName = async (e) => {
     e.preventDefault()
     if (!editName.trim()) return
     try {
-      await api.put(`/classrooms/${id}`, { name: editName })
-      setClassroom((prev) => ({ ...prev, name: editName }))
+      await api.put(`/classrooms/${numericId}`, { name: editName })
+      setEntityData(numericId, 'classroom', { ...classroom, name: editName })
       setIsEditing(false)
       toast.success('Name updated')
     } catch (err) {
@@ -153,13 +99,14 @@ const ClassroomDetail = () => {
     if (!announcementMsg.trim()) return
     setAnnouncementPosting(true)
     try {
-      await api.post(`/classrooms/${id}/announcements`, {
+      await api.post(`/classrooms/${numericId}/announcements`, {
         title: announcementMsg.slice(0, 50),
         content: announcementMsg,
       })
       toast.success('Announcement posted!')
       setAnnouncementMsg('')
-      fetchAnnouncements(classroom)
+      invalidateEntity(numericId, 'announcements')
+      fetchAnnouncementsStore(numericId, true)
     } catch (err) {
       toast.error('Failed to post announcement')
     } finally {
@@ -169,9 +116,10 @@ const ClassroomDetail = () => {
 
   const handleDeleteAnnouncement = async (annId) => {
     try {
-      await api.delete(`/classrooms/${id}/announcements/${annId}`)
+      await api.delete(`/classrooms/${numericId}/announcements/${annId}`)
       toast.success('Announcement deleted')
-      fetchAnnouncements(classroom)
+      invalidateEntity(numericId, 'announcements')
+      fetchAnnouncementsStore(numericId, true)
     } catch {
       toast.error('Failed to delete')
     }
@@ -182,11 +130,12 @@ const ClassroomDetail = () => {
     if (!studentEmail.trim()) return
     setInviteLoading(true)
     try {
-      await api.post(`/classrooms/${id}/invite`, { email: studentEmail.trim() })
+      await api.post(`/classrooms/${numericId}/invite`, { email: studentEmail.trim() })
       toast.success('Student invited!')
       setStudentEmail('')
       setStudentName('')
-      fetchStudents(classroom)
+      invalidateEntity(numericId, 'students')
+      fetchStudentsStore(numericId, true)
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to invite')
     } finally {
@@ -197,10 +146,12 @@ const ClassroomDetail = () => {
   const handleApproveStudent = async (studentId) => {
     setActionLoading(studentId)
     try {
-      await api.post(`/classrooms/${id}/pending/${studentId}/approve`)
+      await api.post(`/classrooms/${numericId}/pending/${studentId}/approve`)
       toast.success('Student approved!')
-      setPendingStudents((prev) => prev.filter((s) => s.id !== studentId))
-      fetchStudents(classroom)
+      invalidateEntity(numericId, 'pending')
+      invalidateEntity(numericId, 'students')
+      fetchPendingStore(numericId, true)
+      fetchStudentsStore(numericId, true)
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to approve')
     } finally {
@@ -211,9 +162,10 @@ const ClassroomDetail = () => {
   const handleRejectStudent = async (studentId) => {
     setActionLoading(studentId)
     try {
-      await api.delete(`/classrooms/${id}/pending/${studentId}/reject`)
+      await api.delete(`/classrooms/${numericId}/pending/${studentId}/reject`)
       toast.success('Request rejected')
-      setPendingStudents((prev) => prev.filter((s) => s.id !== studentId))
+      invalidateEntity(numericId, 'pending')
+      fetchPendingStore(numericId, true)
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to reject')
     } finally {
@@ -241,11 +193,12 @@ const ClassroomDetail = () => {
       if (selectedFolderId) {
         formData.append('folder_id', String(selectedFolderId))
       }
-      await api.post(`/classrooms/${id}/resources/upload`, formData, {
+      await api.post(`/classrooms/${numericId}/resources/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       toast.success('Resource uploaded successfully!')
-      fetchResources(classroom)
+      invalidateEntity(numericId, 'resources')
+      fetchResourcesStore(numericId, true)
     } catch (err) {
       toast.error(err.response?.data?.detail || err.message || 'Upload failed')
     } finally {
@@ -257,10 +210,11 @@ const ClassroomDetail = () => {
   const handleCreateFolder = async () => {
     if (!folderNameInput.trim()) return
     try {
-      await api.post(`/classrooms/${id}/folders`, { name: folderNameInput.trim() })
+      await api.post(`/classrooms/${numericId}/folders`, { name: folderNameInput.trim() })
       setFolderNameInput('')
       setShowFolderInput(false)
-      fetchFolders(classroom)
+      invalidateEntity(numericId, 'folders')
+      fetchFoldersStore(numericId, true)
       toast.success('Folder created')
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to create folder')
@@ -269,8 +223,9 @@ const ClassroomDetail = () => {
 
   const handleDeleteFolder = async (folderId) => {
     try {
-      await api.delete(`/classrooms/${id}/folders/${folderId}`)
-      fetchFolders(classroom)
+      await api.delete(`/classrooms/${numericId}/folders/${folderId}`)
+      invalidateEntity(numericId, 'folders')
+      fetchFoldersStore(numericId, true)
       if (selectedFolderId === folderId) setSelectedFolderId(null)
       toast.success('Folder deleted')
     } catch { toast.error('Failed to delete folder') }
@@ -278,8 +233,9 @@ const ClassroomDetail = () => {
 
   const handleMoveResource = async (resourceId, folderId) => {
     try {
-      await api.put(`/classrooms/${id}/resources/${resourceId}/move`, { folder_id: folderId })
-      fetchResources(classroom)
+      await api.put(`/classrooms/${numericId}/resources/${resourceId}/move`, { folder_id: folderId })
+      invalidateEntity(numericId, 'resources')
+      fetchResourcesStore(numericId, true)
       toast.success('Resource moved')
     } catch { toast.error('Failed to move resource') }
   }
@@ -321,9 +277,10 @@ const ClassroomDetail = () => {
 
   const handleDeleteResource = async (resourceId) => {
     try {
-      await api.delete(`/classrooms/${id}/resources/${resourceId}`)
+      await api.delete(`/classrooms/${numericId}/resources/${resourceId}`)
       toast.success('Resource deleted')
-      fetchResources(classroom)
+      invalidateEntity(numericId, 'resources')
+      fetchResourcesStore(numericId, true)
     } catch {
       toast.error('Failed to delete')
     }
@@ -334,7 +291,7 @@ const ClassroomDetail = () => {
     if (!quizTitle.trim()) return
     setQuizCreating(true)
     try {
-      await api.post(`/classrooms/${id}/quizzes`, {
+      await api.post(`/classrooms/${numericId}/quizzes`, {
         title: quizTitle,
         description: `${quizQuestions} questions`,
         questions: [],
@@ -342,7 +299,8 @@ const ClassroomDetail = () => {
       })
       toast.success('Quiz created!')
       setQuizTitle('')
-      fetchQuizzes(classroom)
+      invalidateEntity(numericId, 'quizzes')
+      fetchQuizzesStore(numericId, true)
     } catch (err) {
       toast.error('Failed to create quiz')
     } finally {
@@ -354,8 +312,8 @@ const ClassroomDetail = () => {
     setGeneratingAI(true)
     setAiMaterial(null)
     try {
-      const res = await api.post(`/classrooms/${id}/chat`, {
-        query: `Generate a comprehensive review sheet for "${classroom.name}" covering all key topics. Include study tips and practice questions.`,
+      const res = await api.post(`/classrooms/${numericId}/chat`, {
+        query: `Generate a comprehensive review sheet for "${classroom?.name}" covering all key topics. Include study tips and practice questions.`,
       })
       const content = res.data.response || 'No content generated.'
       setAiMaterial(content)
@@ -373,7 +331,7 @@ const ClassroomDetail = () => {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `Review-${classroom.name}-${new Date().toISOString().split('T')[0]}.txt`
+    a.download = `Review-${classroom?.name}-${new Date().toISOString().split('T')[0]}.txt`
     a.click()
     toast.success('Review downloaded! Upload it as a PDF resource in the Resources tab.')
     setShowAIModal(false)
@@ -388,7 +346,7 @@ const ClassroomDetail = () => {
     }
   }
 
-  if (loading) {
+  if (pageLoading) {
     return (
       <div className="flex items-center justify-center p-12 min-h-[60vh]">
         <div className="text-lg text-zinc-400">Loading classroom...</div>
@@ -439,9 +397,6 @@ const ClassroomDetail = () => {
             ) : (
               <div className="flex items-start gap-3">
                 <div>
-                  {/* <span className="text-[9px]  tracking-widest text-[#b45309] uppercase block mb-1">
-                    Workspace Archives / Ref: {classroom.invite_code}
-                  </span> */}
                   <h1 className="text-2xl lg:text-3xl font-serif font-semibold  tracking-tight leading-none text-[#1c1b1a]">
                     {classroom.name}
                   </h1>
@@ -586,9 +541,9 @@ const ClassroomDetail = () => {
               </div>
 
               {/* Right Widgets */}
-              <div className="space-y-6">
+              {/* <div className="space-y-6">
                 {/* AI Insights */}
-                <div className="rounded-2xl border p-6 flex flex-col justify-between transition-colors duration-300 bg-gradient-to-b from-white to-[#fbf9f6] border-[#eae7e4] text-[#1c1b1a]">
+                {/* <div className="rounded-2xl border p-6 flex flex-col justify-between transition-colors duration-300 bg-gradient-to-b from-white to-[#fbf9f6] border-[#eae7e4] text-[#1c1b1a]">
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       <span className="p-1.5 rounded-lg bg-green-150 text-[#4a7c59]">
@@ -616,14 +571,14 @@ const ClassroomDetail = () => {
                       )}
                     </button>
                   </div>
-                </div>
+                </div> */}
 
                 {/* Upcoming */}
-                <div className="rounded-2xl border p-6 space-y-4 bg-white border-[#eae7e4]">
+                {/* <div className="rounded-2xl border p-6 space-y-4 bg-white border-[#eae7e4]">
                   <h4 className="font-bold text-sm tracking-tight font-sans text-zinc-900">Upcoming</h4>
                   <p className="text-xs text-zinc-400">No upcoming events scheduled.</p>
-                </div>
-              </div>
+                </div> */}
+              {/* </div> */}
             </div>
           </div>
         )}
