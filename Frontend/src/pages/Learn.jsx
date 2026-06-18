@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   Sparkles, MessageSquare, Plus, Folder, Share2, Paperclip, Send, FileText,
-  ChevronDown, ArrowLeft, RefreshCw, X, PanelLeftClose, PanelLeft
+  ChevronDown, ArrowLeft, X, PanelLeftClose, PanelLeft
 } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -155,20 +155,20 @@ const Learn = () => {
   const activeResources = resources;
 
   const markdownComponents = {
-    h1: ({ children }) => <h1 className="text-2xl font-bold mt-6 mb-3 text-zinc-900 leading-tight">{children}</h1>,
-    h2: ({ children }) => <h2 className="text-xl font-bold mt-5 mb-2 text-zinc-900 leading-tight">{children}</h2>,
-    h3: ({ children }) => <h3 className="text-xl font-bold mt-4 mb-2 text-zinc-800 leading-snug">{children}</h3>,
-    h4: ({ children }) => <h4 className="text-lg font-semibold mt-3 mb-1 text-zinc-800">{children}</h4>,
-    p: ({ children }) => <p className="text-base leading-relaxed mb-2">{children}</p>,
+    h1: ({ children }) => <h1 className="text-2xl font-bold mt-5 mb-2 text-zinc-900 leading-tight">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-xl font-bold mt-4 mb-2 text-zinc-900 leading-tight">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-lg font-bold mt-3 mb-1 text-zinc-800 leading-snug">{children}</h3>,
+    h4: ({ children }) => <h4 className="text-base font-semibold mt-2 mb-1 text-zinc-800">{children}</h4>,
+    p: ({ children }) => <p className="text-[15px] leading-relaxed mb-2">{children}</p>,
     ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
     ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>,
-    li: ({ children }) => <li className="text-base leading-relaxed">{children}</li>,
-    code: ({ children }) => <code className="bg-zinc-200/60 px-1.5 py-0.5 rounded text-sm font-mono text-zinc-800">{children}</code>,
-    pre: ({ children }) => <pre className="bg-zinc-200/40 p-3 rounded-lg overflow-x-auto mb-3 text-sm font-mono">{children}</pre>,
+    li: ({ children }) => <li className="text-[15px] leading-relaxed">{children}</li>,
+    code: ({ children }) => <code className="bg-zinc-200/60 px-1.5 py-0.5 rounded text-[13px] font-mono text-zinc-800">{children}</code>,
+    pre: ({ children }) => <pre className="bg-zinc-200/40 p-3 rounded-lg overflow-x-auto mb-3 text-[13px] font-mono">{children}</pre>,
     strong: ({ children }) => <strong className="font-bold text-zinc-900">{children}</strong>,
     em: ({ children }) => <em className="italic">{children}</em>,
     blockquote: ({ children }) => (
-      <blockquote className="border-l-3 border-[#4A7C59] pl-3 py-1 my-2 text-zinc-600 text-base italic bg-[#4A7C59]/5 rounded-r-lg">{children}</blockquote>
+      <blockquote className="border-l-3 border-[#4A7C59] pl-3 py-1 my-2 text-zinc-600 text-[15px] italic bg-[#4A7C59]/5 rounded-r-lg">{children}</blockquote>
     ),
     hr: () => <hr className="my-4 border-zinc-200" />,
     a: ({ children, href }) => (
@@ -176,14 +176,14 @@ const Learn = () => {
     ),
     table: ({ children }) => (
       <div className="overflow-x-auto my-4 border border-zinc-200 rounded-lg">
-        <table className="w-full text-sm border-collapse">{children}</table>
+        <table className="w-full text-[13px] border-collapse">{children}</table>
       </div>
     ),
     thead: ({ children }) => <thead className="bg-zinc-100 border-b border-zinc-200">{children}</thead>,
     tbody: ({ children }) => <tbody>{children}</tbody>,
     tr: ({ children }) => <tr className="border-b border-zinc-100 last:border-0 even:bg-zinc-50">{children}</tr>,
-    th: ({ children }) => <th className="px-3 py-2.5 text-left text-sm font-bold uppercase tracking-wider text-zinc-600">{children}</th>,
-    td: ({ children }) => <td className="px-3 py-2.5 text-base text-zinc-700">{children}</td>,
+    th: ({ children }) => <th className="px-3 py-2.5 text-left text-[13px] font-bold uppercase tracking-wider text-zinc-600">{children}</th>,
+    td: ({ children }) => <td className="px-3 py-2.5 text-[15px] text-zinc-700">{children}</td>,
   };
 
   const groupByTime = (convs) => {
@@ -207,44 +207,44 @@ const Learn = () => {
         {/* Sidebar */}
         <aside
           className={`shrink-0 flex flex-col border-r border-[#eae6e1] bg-white transition-all duration-300 ease-in-out overflow-hidden ${
-            sidebarOpen ? "w-[280px]" : "w-0 border-r-0"
+            sidebarOpen ? "w-[240px]" : "w-0 border-r-0"
           }`}
         >
-          <div className="p-5 border-b border-[#eae6e1] flex flex-col gap-4 min-w-[280px]">
-            <div className="flex items-center gap-2.5">
-              <img src="/icon.png" className="w-8 h-8 rounded-lg object-contain" />
+          <div className="p-3 border-b border-[#eae6e1] flex flex-col gap-3 min-w-[240px]">
+            <div className="flex items-center gap-2">
+              <img src="/icon.png" className="w-7 h-7 rounded-lg object-contain" />
               <div className="flex flex-col leading-none">
-                <span className="font-bold text-base tracking-tight">Clarix</span>
-                <span className="text-xs text-zinc-500">Learn</span>
+                <span className="font-bold text-sm tracking-tight">Clarix</span>
+                <span className="text-[10px] text-zinc-500">Learn</span>
               </div>
             </div>
             <button
               onClick={handleNewConversation}
               disabled={!selectedClassroom}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-semibold bg-[#4A7C59] text-white hover:bg-[#faf7f3] hover:text-[#4A7C59] border border-[#4A7C59] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold bg-[#4A7C59] text-white hover:bg-[#faf7f3] hover:text-[#4A7C59] border border-[#4A7C59] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               New Conversation
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-5 min-w-[280px]">
+          <div className="flex-1 overflow-y-auto p-3 space-y-4 min-w-[240px]">
             {!selectedClassroom ? (
-              <div className="text-center py-8 text-sm text-zinc-400">
+              <div className="text-center py-6 text-xs text-zinc-400">
                 Select a classroom to start
               </div>
             ) : sessionsLoading ? (
-              <div className="text-center py-8 text-sm text-zinc-400">
+              <div className="text-center py-6 text-xs text-zinc-400">
                 Loading...
               </div>
             ) : sessions.length === 0 ? (
-              <div className="text-center py-8 text-sm text-zinc-400">
+              <div className="text-center py-6 text-xs text-zinc-400">
                 No conversations yet
               </div>
             ) : (
               groupByTime(sessions).map((group) => (
                 <div key={group.label}>
-                  <span className="text-xs font-bold tracking-wider text-zinc-400 uppercase block px-1 mb-2">
+                  <span className="text-[10px] font-bold tracking-wider text-zinc-400 uppercase block px-1 mb-1">
                     {group.label}
                   </span>
                   <div className="space-y-0.5">
@@ -252,13 +252,13 @@ const Learn = () => {
                       <button
                         key={conv.id}
                         onClick={() => handleSelectConv(conv.id)}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-left transition-all ${
+                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-left transition-all ${
                           activeSessionId === conv.id
                             ? "bg-[#faf7f3] text-[#4A7C59] font-semibold border border-[#eae6e1]"
                             : "text-zinc-700 hover:bg-[#faf7f3] border border-transparent"
                         }`}
                       >
-                        <MessageSquare className="w-4 h-4 shrink-0" />
+                        <MessageSquare className="w-3.5 h-3.5 shrink-0" />
                         <span className="truncate">{conv.title}</span>
                       </button>
                     ))}
@@ -270,7 +270,9 @@ const Learn = () => {
         </aside>
 
         {/* Main Chat Panel */}
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <main className={`flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
+          sidebarOpen ? "flex-1" : "flex-1 ml-[200px]"
+        }`}>
           {/* Header */}
           <header className="px-6 py-3 border-b border-[#eae6e1] bg-[#faf7f3] flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
@@ -346,13 +348,13 @@ const Learn = () => {
           )}
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 relative pb-36 bg-[#faf7f3]/30">
+          <div className="flex-1 overflow-y-auto pt-10 pl-6 pr-10 pb-36 space-y-4 relative bg-[#faf7f3]/30">
           {!selectedClassroom ? (
             <div className="h-full flex flex-col justify-center items-center text-center p-6">
               <div className="p-4 rounded-full bg-[#faf7f3] text-[#4A7C59] mb-4">
                 <MessageSquare className="w-8 h-8" />
               </div>
-              <h4 className="text-xl font-semibold text-zinc-900">
+              <h4 className="text-lg font-semibold text-zinc-900">
                 Select a Classroom
               </h4>
               <p className="text-base text-zinc-500 mt-1 max-w-sm">
@@ -364,7 +366,7 @@ const Learn = () => {
               <div className="p-4 rounded-full bg-[#faf7f3] text-[#4A7C59] mb-4">
                 <Sparkles className="w-8 h-8" />
               </div>
-              <h4 className="text-xl font-semibold text-zinc-900">
+              <h4 className="text-lg font-semibold text-zinc-900">
                 Start a Conversation
               </h4>
               <p className="text-base text-zinc-500 mt-1 max-w-sm">
@@ -372,7 +374,7 @@ const Learn = () => {
               </p>
               <button
                 onClick={handleNewConversation}
-                className="mt-4 px-4 py-2 bg-[#4A7C59] text-white text-base font-semibold rounded-xl border border-[#4A7C59] hover:bg-[#faf7f3] hover:text-[#4A7C59] transition-colors"
+                className="mt-4 px-3 py-1.5 bg-[#4A7C59] text-white text-sm font-semibold rounded-xl border border-[#4A7C59] hover:bg-[#faf7f3] hover:text-[#4A7C59] transition-colors"
               >
                 + New Conversation
               </button>
@@ -382,7 +384,7 @@ const Learn = () => {
               <div className="p-4 rounded-full bg-[#faf7f3] text-[#4A7C59] mb-4">
                 <Sparkles className="w-8 h-8 animate-pulse" />
               </div>
-              <h4 className="text-xl font-semibold text-zinc-900">
+              <h4 className="text-lg font-semibold text-zinc-900">
                 Ask anything
               </h4>
               <p className="text-base text-zinc-500 mt-1 max-w-sm">
@@ -393,33 +395,19 @@ const Learn = () => {
             activeMessages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex max-w-3xl gap-4 ${
+                  className={`flex max-w-2xl gap-2 ${
                     msg.role === "user" ? "ml-auto flex-row-reverse" : ""
                   }`}
                 >
                   <div
-                    className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
+                    className={`flex-1 p-3 rounded-2xl ${
                       msg.role === "user"
                         ? "bg-[#4A7C59] text-white"
-                        : "bg-[#faf7f3] text-[#4A7C59]"
+                        : "bg-[#faf7f3] text-zinc-800"
                     }`}
                   >
                     {msg.role === "user" ? (
-                      "U"
-                    ) : (
-                      <Sparkles className="w-5 h-5" />
-                    )}
-                  </div>
-
-                  <div
-                    className={`flex-1 p-4 rounded-2xl ${
-                      msg.role === "user"
-                        ? "bg-[#4A7C59] text-white"
-                        : "bg-[#faf7f3] text-zinc-700"
-                    }`}
-                  >
-                    {msg.role === "user" ? (
-                      <p className="text-base leading-relaxed">{msg.content}</p>
+                      <p className="text-[15px] leading-relaxed">{msg.content}</p>
                     ) : (
                     <div className="leading-relaxed [&>p:last-child]:mb-0 [&>ul:last-child]:mb-0 [&>ol:last-child]:mb-0">
                       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
@@ -433,12 +421,9 @@ const Learn = () => {
           )}
 
           {isSubmitting && (
-            <div className="flex max-w-3xl gap-4">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center bg-[#faf7f3] text-[#4A7C59] shrink-0">
-                <RefreshCw className="w-5 h-5 animate-spin" />
-              </div>
-              <div className="flex-1 p-4 rounded-2xl bg-[#faf7f3]/50">
-                <span className="text-base text-zinc-400">Thinking...</span>
+            <div className="flex max-w-2xl">
+              <div className="flex-1 p-3 rounded-2xl bg-[#faf7f3]/50">
+                <span className="text-[15px] text-zinc-400">Thinking...</span>
               </div>
             </div>
           )}
@@ -448,17 +433,17 @@ const Learn = () => {
 
         {/* Floating Input */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#faf7f3] via-[#faf7f3]/95 to-transparent pt-12 pb-4 px-4 pointer-events-none">
-          <form onSubmit={handleSendMessage} className="relative max-w-4xl mx-auto pointer-events-auto">
+          <form onSubmit={handleSendMessage} className="flex items-center gap-2 max-w-2xl mx-auto pointer-events-auto">
             <textarea
               ref={textareaRef}
-              className="w-full max-h-32 p-3 pr-14 rounded-xl border border-zinc-200 text-base leading-relaxed focus:outline-none focus:border-[#4A7C59] focus:ring-2 focus:ring-[#4A7C59]/15 resize-none bg-white text-zinc-900 placeholder:text-zinc-400 overflow-y-auto shadow-lg shadow-black/5"
+              className="flex-1 min-h-[44px] max-h-[200px] p-3 rounded-xl border border-zinc-200 text-base leading-relaxed focus:outline-none focus:border-[#4A7C59] focus:ring-2 focus:ring-[#4A7C59]/15 resize-none bg-white text-zinc-900 placeholder:text-zinc-400 overflow-y-auto shadow-lg shadow-black/5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-zinc-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent"
               placeholder="Ask a question about your resources..."
               rows={1}
               value={inputMessage}
               onChange={(e) => {
                 setInputMessage(e.target.value);
                 e.target.style.height = "auto";
-                e.target.style.height = Math.min(e.target.scrollHeight, 128) + "px";
+                e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
@@ -470,7 +455,7 @@ const Learn = () => {
             <button
               type="submit"
               disabled={!inputMessage.trim() || isSubmitting || !activeSessionId}
-              className="absolute right-2 bottom-2 p-2 rounded-xl bg-[#4A7C59] text-white hover:bg-[#faf7f3] hover:text-[#4A7C59] border border-[#4A7C59] transition-all active:scale-[0.95] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+              className="shrink-0 p-2.5 rounded-xl bg-[#4A7C59] text-white hover:bg-[#faf7f3] hover:text-[#4A7C59] border border-[#4A7C59] transition-all active:scale-[0.95] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
             >
               <Send className="w-4 h-4" />
             </button>
@@ -483,7 +468,7 @@ const Learn = () => {
 
       {/* Resource Viewer Drawer */}
       {selectedResource && (
-        <aside className="w-[450px] shrink-0 flex flex-col border-l border-[#eae6e1] bg-white">
+        <aside className="absolute top-0 right-0 h-full w-[450px] flex flex-col border-l border-[#eae6e1] bg-white shadow-xl z-20">
           <header className="px-4 py-3 border-b border-[#eae6e1] flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2 min-w-0">
               <FileText className="w-4 h-4 text-[#4A7C59] shrink-0" />
