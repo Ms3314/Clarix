@@ -270,9 +270,7 @@ const Learn = () => {
         </aside>
 
         {/* Main Chat Panel */}
-        <main className={`flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
-          sidebarOpen ? "flex-1" : "flex-1 ml-[200px]"
-        }`}>
+        <main className="flex-1 flex flex-col overflow-hidden">
           {/* Header */}
           <header className="px-6 py-3 border-b border-[#eae6e1] bg-[#faf7f3] flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
@@ -348,7 +346,7 @@ const Learn = () => {
           )}
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto pt-10 pl-6 pr-10 pb-36 space-y-4 relative bg-[#faf7f3]/30">
+          <div className="flex-1 overflow-y-auto pt-10 px-6 pb-36 space-y-4 relative bg-[#faf7f3]/30">
           {!selectedClassroom ? (
             <div className="h-full flex flex-col justify-center items-center text-center p-6">
               <div className="p-4 rounded-full bg-[#faf7f3] text-[#4A7C59] mb-4">
@@ -393,31 +391,42 @@ const Learn = () => {
             </div>
           ) : (
             activeMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex max-w-2xl gap-2 ${
-                    msg.role === "user" ? "ml-auto flex-row-reverse" : ""
-                  }`}
-                >
-                  <div
-                    className={`flex-1 p-3 rounded-2xl ${
-                      msg.role === "user"
-                        ? "bg-[#4A7C59] text-white"
-                        : "bg-[#faf7f3] text-zinc-800"
-                    }`}
-                  >
-                    {msg.role === "user" ? (
-                      <p className="text-[15px] leading-relaxed">{msg.content}</p>
-                    ) : (
-                    <div className="leading-relaxed [&>p:last-child]:mb-0 [&>ul:last-child]:mb-0 [&>ol:last-child]:mb-0">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                        {msg.content}
-                      </ReactMarkdown>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))
+  <div
+    key={msg.id}
+    className="w-full max-w-4xl mx-auto"
+  >
+    <div
+      className={`flex ${
+        msg.role === "user"
+          ? "justify-end"
+          : "justify-start"
+      }`}
+    >
+      <div
+        className={`rounded-3xl px-5 py-3 ${
+          msg.role === "user"
+            ? "max-w-[70%] bg-[#4A7C59] text-white"
+            : "w-full text-zinc-800"
+        }`}
+      >
+        {msg.role === "user" ? (
+          <p className="text-[15px] leading-relaxed">
+            {msg.content}
+          </p>
+        ) : (
+          <div className="leading-relaxed">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={markdownComponents}
+            >
+              {msg.content}
+            </ReactMarkdown>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+))
           )}
 
           {isSubmitting && (
@@ -433,7 +442,7 @@ const Learn = () => {
 
         {/* Floating Input */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#faf7f3] via-[#faf7f3]/95 to-transparent pt-12 pb-4 px-4 pointer-events-none">
-          <form onSubmit={handleSendMessage} className="flex items-center gap-2 max-w-2xl mx-auto pointer-events-auto">
+          <form onSubmit={handleSendMessage} className="flex items-center gap-2 max-w-4xl mx-auto pointer-events-auto">
             <textarea
               ref={textareaRef}
               className="flex-1 min-h-[44px] max-h-[200px] p-3 rounded-xl border border-zinc-200 text-base leading-relaxed focus:outline-none focus:border-[#4A7C59] focus:ring-2 focus:ring-[#4A7C59]/15 resize-none bg-white text-zinc-900 placeholder:text-zinc-400 overflow-y-auto shadow-lg shadow-black/5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-zinc-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent"
