@@ -4,15 +4,10 @@ from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 import os
 load_dotenv()
-USER = os.getenv("user")
-PASSWORD = os.getenv("password")
-HOST = os.getenv("host")
-PORT = os.getenv("port")
-DBNAME = os.getenv("dbname")
 
-
-# SQLALCHEMY_DATABASE_URL = f"postgresql+psycopg2://{USER}:{PASSWORD}@{HOST}:{PORT}/{DBNAME}?sslmode=require"
-SQLALCHEMY_DATABASE_URL= "sqlite:///./todosapp.db"
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+if not SQLALCHEMY_DATABASE_URL:
+    SQLALCHEMY_DATABASE_URL = "postgresql+psycopg2://postgres.bzwugaotcapflendrdhp:clarix160423733@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import api from '@/lib/api'
+import { resetAllStores } from '@/lib/resetStores'
 
 const STALE_MS = 5 * 60 * 1000
 
@@ -27,7 +28,7 @@ const useAuthStore = create((set, get) => ({
 
   logout: () => {
     localStorage.removeItem('clarix_token')
-    set({ user: null, lastFetched: null, isLoading: false, isFetching: false, error: null })
+    resetAllStores()
   },
 
   hydrate: async () => {

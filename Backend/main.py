@@ -108,6 +108,7 @@ async def get_teacher_resources(
             "id": r.id,
             "filename": r.filename,
             "file_size": r.file_size,
+            "resource_type": r.resource_type,
             "indexed": r.indexed,
             "created_at": r.created_at.isoformat() if r.created_at else None,
             "classroom_id": r.classroom_id,
@@ -173,6 +174,18 @@ async def startup_event():
             if 'banner' not in cls_columns:
                 conn.exec_driver_sql("ALTER TABLE classrooms ADD COLUMN banner VARCHAR")
                 print("[Startup] Added banner column to classrooms")
+            if 'resources_enabled' not in cls_columns:
+                conn.exec_driver_sql("ALTER TABLE classrooms ADD COLUMN resources_enabled BOOLEAN DEFAULT TRUE")
+                print("[Startup] Added resources_enabled column to classrooms")
+            if 'quizzes_enabled' not in cls_columns:
+                conn.exec_driver_sql("ALTER TABLE classrooms ADD COLUMN quizzes_enabled BOOLEAN DEFAULT TRUE")
+                print("[Startup] Added quizzes_enabled column to classrooms")
+            if 'flashcards_enabled' not in cls_columns:
+                conn.exec_driver_sql("ALTER TABLE classrooms ADD COLUMN flashcards_enabled BOOLEAN DEFAULT TRUE")
+                print("[Startup] Added flashcards_enabled column to classrooms")
+            if 'announcements_enabled' not in cls_columns:
+                conn.exec_driver_sql("ALTER TABLE classrooms ADD COLUMN announcements_enabled BOOLEAN DEFAULT TRUE")
+                print("[Startup] Added announcements_enabled column to classrooms")
             conn.commit()
     except Exception as e:
         print(f"[Startup] Classroom migration note: {e}")
@@ -194,18 +207,31 @@ async def startup_event():
     except Exception as e:
         print(f"[Startup] Folders table migration note: {e}")
 
-    # Add folder_id to resources if missing
+    # Add folder_id / resource_type to resources if missing
     try:
         from sqlalchemy import inspect
         inspector = inspect(engine)
         res_columns = [c['name'] for c in inspector.get_columns('resources')]
-        if 'folder_id' not in res_columns:
-            with engine.connect() as conn:
+        with engine.connect() as conn:
+            if 'folder_id' not in res_columns:
                 conn.exec_driver_sql("ALTER TABLE resources ADD COLUMN folder_id INTEGER REFERENCES folders(id)")
-                conn.commit()
                 print("[Startup] Added folder_id column to resources")
+            if 'resource_type' not in res_columns:
+                conn.exec_driver_sql("ALTER TABLE resources ADD COLUMN resource_type VARCHAR DEFAULT 'notes'")
+                print("[Startup] Added resource_type column to resources")
+            if 'personal_copy_of' not in res_columns:
+                conn.exec_driver_sql("ALTER TABLE resources ADD COLUMN personal_copy_of INTEGER REFERENCES resources(id)")
+                print("[Startup] Added personal_copy_of column to resources")
+            if 'owner_id' not in res_columns:
+                conn.exec_driver_sql("ALTER TABLE resources ADD COLUMN owner_id INTEGER REFERENCES users(id)")
+                print("[Startup] Added owner_id column to resources")
+            if 'annotations_data' not in res_columns:
+                conn.exec_driver_sql("ALTER TABLE resources ADD COLUMN annotations_data TEXT")
+                conn.commit()
+                print("[Startup] Added annotations_data column to resources")
+            conn.commit()
     except Exception as e:
-        print(f"[Startup] Resources folder_id migration note: {e}")
+        print(f"[Startup] Resources migration note: {e}")
 
     # Add profile columns to users if missing
     try:

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
+import { resetAllStores } from "@/lib/resetStores";
 
 export default () => {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ export default () => {
           password: formData.password,
         });
         localStorage.setItem("clarix_token", response.data.access_token);
+        resetAllStores();
         const redirectCode = localStorage.getItem('join_redirect')
         if (redirectCode) {
           localStorage.removeItem('join_redirect')

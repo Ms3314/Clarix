@@ -20,6 +20,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
 import {
   DropdownMenu,
@@ -54,10 +55,10 @@ export const AppSidebar = ({ ...props }) => {
   const isClassroomActive = (id) => location.pathname === `/classroom/${id}`
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-[#e8e4e0]" {...props}>
+    <Sidebar collapsible="offcanvas" className="border-r border-[#e8e4e0]" {...props}>
       <SidebarHeader className="border-b border-[#e8e4e0] pb-3">
         <SidebarMenu>
-          <SidebarMenuItem>
+          <SidebarMenuItem className="flex items-center">
             <SidebarMenuButton size="lg" onClick={() => navigate("/dashboard")} className="hover:bg-[#f0eae3] transition-colors">
               <div className="flex items-center gap-2.5">
                 <img src="/icon.png" className="w-8 h-8 rounded-lg object-contain" />
@@ -66,6 +67,7 @@ export const AppSidebar = ({ ...props }) => {
                 </div>
               </div>
             </SidebarMenuButton>
+            <SidebarTrigger className="text-[#acaaa6] hover:text-[#4a4948]" />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

@@ -264,9 +264,16 @@ const Dashboard = () => {
                         {doc.file_size && ` · ${(doc.file_size / 1024).toFixed(0)} KB`}
                       </p>
                     </div>
-                    <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 border ${doc.indexed ? 'text-emerald-600 border-emerald-200 bg-emerald-50' : 'text-amber-600 border-amber-200 bg-amber-50'}`}>
-                      {doc.indexed ? 'Indexed' : 'Pending'}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {doc.resource_type && (
+                        <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 border ${doc.resource_type === 'pyq' ? 'text-amber-600 border-amber-200 bg-amber-50' : doc.resource_type === 'notes' ? 'text-blue-600 border-blue-200 bg-blue-50' : 'text-zinc-500 border-zinc-200 bg-zinc-50'}`}>
+                          {doc.resource_type === 'pyq' ? 'PYQ' : doc.resource_type === 'notes' ? 'Notes' : 'Other'}
+                        </span>
+                      )}
+                      <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 border ${doc.indexed ? 'text-emerald-600 border-emerald-200 bg-emerald-50' : 'text-amber-600 border-amber-200 bg-amber-50'}`}>
+                        {doc.indexed ? 'Indexed' : 'Pending'}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>

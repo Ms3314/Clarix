@@ -83,6 +83,10 @@ class ClassroomUpdate(BaseModel):
     icon: str = "sigma"
     banner: str = ""
     is_public: bool = False
+    resources_enabled: bool = True
+    quizzes_enabled: bool = True
+    flashcards_enabled: bool = True
+    announcements_enabled: bool = True
 
 class StudentResponse(BaseModel):
     id: int
@@ -194,6 +198,10 @@ async def list_classrooms(
                 "icon": c.icon,
                 "banner": c.banner,
                 "is_public": c.is_public,
+                "resources_enabled": c.resources_enabled,
+                "quizzes_enabled": c.quizzes_enabled,
+                "flashcards_enabled": c.flashcards_enabled,
+                "announcements_enabled": c.announcements_enabled,
                 "teacher_id": c.teacher_id,
                 "teacher_name": c.teacher.username if c.teacher else None,
                 "teacher_profile_picture": c.teacher.profile_picture_url if c.teacher else None,
@@ -227,6 +235,10 @@ async def get_classroom_by_invite(
         "subject": classroom.subject,
         "banner": classroom.banner,
         "is_public": classroom.is_public,
+        "resources_enabled": classroom.resources_enabled,
+        "quizzes_enabled": classroom.quizzes_enabled,
+        "flashcards_enabled": classroom.flashcards_enabled,
+        "announcements_enabled": classroom.announcements_enabled,
         "teacher_id": classroom.teacher_id,
         "teacher_name": teacher_name,
         "teacher_profile_picture": teacher_profile_picture,
@@ -280,6 +292,10 @@ async def get_classroom(
         "icon": classroom.icon,
         "banner": classroom.banner,
         "is_public": classroom.is_public,
+        "resources_enabled": classroom.resources_enabled,
+        "quizzes_enabled": classroom.quizzes_enabled,
+        "flashcards_enabled": classroom.flashcards_enabled,
+        "announcements_enabled": classroom.announcements_enabled,
         "teacher_id": classroom.teacher_id,
         "invite_code": classroom.invite_code,
         "created_at": classroom.created_at,
@@ -306,6 +322,10 @@ async def update_classroom(
     classroom.icon = request.icon
     classroom.banner = request.banner or None
     classroom.is_public = request.is_public
+    classroom.resources_enabled = request.resources_enabled
+    classroom.quizzes_enabled = request.quizzes_enabled
+    classroom.flashcards_enabled = request.flashcards_enabled
+    classroom.announcements_enabled = request.announcements_enabled
     db.commit()
     db.refresh(classroom)
 
@@ -326,6 +346,10 @@ async def update_classroom(
         "icon": classroom.icon,
         "banner": classroom.banner,
         "is_public": classroom.is_public,
+        "resources_enabled": classroom.resources_enabled,
+        "quizzes_enabled": classroom.quizzes_enabled,
+        "flashcards_enabled": classroom.flashcards_enabled,
+        "announcements_enabled": classroom.announcements_enabled,
         "teacher_id": classroom.teacher_id,
         "invite_code": classroom.invite_code,
         "created_at": classroom.created_at,
