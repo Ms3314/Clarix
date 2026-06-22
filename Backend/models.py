@@ -47,6 +47,7 @@ class Classroom(Base):
     subject = Column(String, nullable=True)
     icon = Column(String, default='sigma')
     banner = Column(String, nullable=True)
+    banner_color = Column(String, nullable=True)
     is_public = Column(Boolean, default=False)
     resources_enabled = Column(Boolean, default=True)
     quizzes_enabled = Column(Boolean, default=True)

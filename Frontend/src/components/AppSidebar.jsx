@@ -7,6 +7,7 @@ import {
   BookOpen,
   BookOpenText,
   Settings,
+  GraduationCap,
 } from "lucide-react"
 import {
   Sidebar,
@@ -64,6 +65,12 @@ export const AppSidebar = ({ ...props }) => {
                 <img src="/icon.png" className="w-8 h-8 rounded-lg object-contain" />
                 <div className="flex flex-col leading-none">
                   <span className="font-bold text-base text-[17px] tracking-tight">Clarix</span>
+                  {user?.role === 'teacher' && (
+                    <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 tracking-wider mt-0.5">
+                      <GraduationCap className="w-3 h-3" />
+                      Teacher
+                    </span>
+                  )}
                 </div>
               </div>
             </SidebarMenuButton>

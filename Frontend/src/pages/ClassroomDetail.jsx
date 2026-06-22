@@ -2,8 +2,14 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Edit3, Folder, HelpCircle, Users, Sparkles, Megaphone, CheckSquare,
-  Trash2, FileText, Link, X,
+  Trash2, FileText, Link, X, MoreVertical,
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
 import ResourceBrowser from '@/components/classroom/ResourceBrowser'
 import PdfViewerPanel from '@/components/classroom/PdfViewerPanel'
 import ClassroomSettings from '@/components/classroom/ClassroomSettings'
@@ -368,26 +374,33 @@ const ClassroomDetail = () => {
           </div>
 
           {isTeacher && (
-            <>
-              <button
-                onClick={() => { setIsEditing(true); setEditName(classroom.name) }}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs uppercase tracking-wider font-semibold border transition-all cursor-pointer border-zinc-300 hover:border-[#1c1b1a] hover:bg-[#1c1b1a] hover:text-white text-zinc-700 bg-transparent"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                Edit Class Label
-              </button>
-              <button
-                onClick={() => {
-                  const link = `${window.location.origin}/join/${classroom.invite_code}`
-                  navigator.clipboard.writeText(link)
-                  toast.success('Join link copied!')
-                }}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs uppercase tracking-wider font-semibold border transition-all cursor-pointer border-zinc-300 hover:border-[#1c1b1a] hover:bg-[#1c1b1a] hover:text-white text-zinc-700 bg-transparent"
-              >
-                <Link className="w-3.5 h-3.5" />
-                Share Link
-              </button>
-            </>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center justify-center w-8 h-8 rounded border border-zinc-300 text-zinc-500 hover:bg-zinc-100 hover:border-zinc-400 transition-all cursor-pointer">
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[160px]">
+                <DropdownMenuItem
+                  onClick={() => { setIsEditing(true); setEditName(classroom.name) }}
+                  className="text-xs gap-2 cursor-pointer"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  Edit Class Label
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    const link = `${window.location.origin}/join/${classroom.invite_code}`
+                    navigator.clipboard.writeText(link)
+                    toast.success('Join link copied!')
+                  }}
+                  className="text-xs gap-2 cursor-pointer"
+                >
+                  <Link className="w-3.5 h-3.5" />
+                  Share Link
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
 

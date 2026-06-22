@@ -174,6 +174,9 @@ async def startup_event():
             if 'banner' not in cls_columns:
                 conn.exec_driver_sql("ALTER TABLE classrooms ADD COLUMN banner VARCHAR")
                 print("[Startup] Added banner column to classrooms")
+            if 'banner_color' not in cls_columns:
+                conn.exec_driver_sql("ALTER TABLE classrooms ADD COLUMN banner_color VARCHAR")
+                print("[Startup] Added banner_color column to classrooms")
             if 'resources_enabled' not in cls_columns:
                 conn.exec_driver_sql("ALTER TABLE classrooms ADD COLUMN resources_enabled BOOLEAN DEFAULT TRUE")
                 print("[Startup] Added resources_enabled column to classrooms")
