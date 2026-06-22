@@ -9,20 +9,8 @@ load_dotenv(dotenv_path=env_path)
 
 
 def get_embeddings():
-    from langchain_community.embeddings import SentenceTransformerEmbeddings
-    return SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
-
-
-def get_chroma_client():
-    import chromadb
-    api_key = os.getenv("CHROMA_API_KEY")
-    if not api_key:
-        raise ValueError("CHROMA_API_KEY not found in .env")
-    return chromadb.CloudClient(
-        tenant="dbf4a556-9827-4d33-b941-82278f0bb043",
-        database="clarix",
-        api_key=api_key,
-    )
+    from langchain_ollama import OllamaEmbeddings
+    return OllamaEmbeddings(model="nomic-embed-text-v2-moe" , dimensions="384")
 
 
 def get_vectorstore(classroom_id: int):
@@ -31,7 +19,7 @@ def get_vectorstore(classroom_id: int):
     return Chroma(
         collection_name=collection_name,
         embedding_function=get_embeddings(),
-        client=get_chroma_client(),
+        persist_directory="./chroma_db"
     )
 
 
@@ -61,7 +49,7 @@ def index_resource(file_path: str, classroom_id: int, resource_id: int) -> bool:
             doc.metadata["classroom_id"] = classroom_id
             doc.metadata["resource_id"] = resource_id
 
-        print(f"[RAG] Indexing {len(documents)} chunks into cloud Chroma collection for classroom {classroom_id}")
+        print(f"[RAG] Indexing {len(documents)} chunks into local Chroma collection for classroom {classroom_id}")
         vectorstore = get_vectorstore(classroom_id)
         vectorstore.add_documents(documents)
 
@@ -133,7 +121,7 @@ def generate_rag_response(query: str, classroom_id: int, conversation_history: l
     context = format_context(results)
 
     try:
-        from langchain_groq import ChatGroq
+        from langchain_ollama import ChatOllama
         from langchain_core.prompts import ChatPromptTemplate
 
         messages = [
@@ -163,10 +151,9 @@ Context:
 
         prompt = ChatPromptTemplate.from_messages(messages)
 
-        llm = ChatGroq(
-            model="llama-3.1-8b-instant",
+        llm = ChatOllama(
+            model="deepseek-coder:6.7b",
             temperature=0.7,
-            api_key=os.getenv("GROQ_API_KEY")
         )
 
         chain = prompt | llm
@@ -180,7 +167,7 @@ Context:
 
 def generate_conversation_title(query: str) -> str:
     try:
-        from langchain_groq import ChatGroq
+        from langchain_ollama import ChatOllama
         from langchain_core.prompts import ChatPromptTemplate
 
         prompt = ChatPromptTemplate.from_messages([
@@ -188,10 +175,9 @@ def generate_conversation_title(query: str) -> str:
             ("user", "{query}")
         ])
 
-        llm = ChatGroq(
-            model="llama-3.1-8b-instant",
+        llm = ChatOllama(
+            model="deepseek-coder:6.7b",
             temperature=0.3,
-            api_key=os.getenv("GROQ_API_KEY")
         )
 
         chain = prompt | llm
