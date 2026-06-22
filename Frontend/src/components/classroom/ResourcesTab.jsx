@@ -81,9 +81,16 @@ export const ResourcesTab = ({
                         >
                           {resource.filename}
                         </a>
-                        <p className="text-sm" style={{ color: '#666666' }}>
-                          {resource.indexed ? 'Indexed' : 'Processing...'}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          {resource.resource_type && (
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${resource.resource_type === 'pyq' ? 'bg-amber-500/20 text-amber-400' : resource.resource_type === 'notes' ? 'bg-blue-500/20 text-blue-400' : 'bg-zinc-500/20 text-zinc-400'}`}>
+                              {resource.resource_type === 'pyq' ? 'PYQ' : resource.resource_type === 'notes' ? 'Notes' : 'Other'}
+                            </span>
+                          )}
+                          <p className="text-sm" style={{ color: '#666666' }}>
+                            {resource.indexed ? 'Indexed' : 'Processing...'}
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>

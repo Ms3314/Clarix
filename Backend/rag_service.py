@@ -1,37 +1,52 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
-CHROMA_COLLECTION_NAME = "classroom_resources"
+CHROMA_COLLECTION_PREFIX = "classroom_"
+
+env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
 
 def get_embeddings():
-    from langchain_community.embeddings import SentenceTransformerEmbeddings
-    return SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+    from langchain_huggingface import HuggingFaceEmbeddings
+    return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 
-def get_chroma_client(classroom_id: int):
-    from langchain_community.vectorstores import Chroma
-    persist_directory = f"./chroma_db/classroom_{classroom_id}"
-    os.makedirs(persist_directory, exist_ok=True)
+def _resolve_invite_code(classroom_id: int) -> str:
+    from Backend.Database import SessionLocal
+    from Backend.models import Classroom
+    db = SessionLocal()
+    try:
+        classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+        return classroom.invite_code if classroom else str(classroom_id)
+    finally:
+        db.close()
+
+
+def get_vectorstore(classroom_id: int):
+    import chromadb
+    from langchain_chroma import Chroma
+    invite_code = _resolve_invite_code(classroom_id)
+    collection_name = f"{CHROMA_COLLECTION_PREFIX}{invite_code}"
+    chroma_client = chromadb.CloudClient(
+        api_key=os.getenv("CHROMA_API_KEY"),
+        tenant=os.getenv("CHROMA_TENANT", "default"),
+        database=os.getenv("CHROMA_DATABASE", "default"),
+    )
     return Chroma(
-        collection_name=f"{CHROMA_COLLECTION_NAME}_{classroom_id}",
+        collection_name=collection_name,
         embedding_function=get_embeddings(),
-        persist_directory=persist_directory
+        client=chroma_client,
     )
 
 
-def index_resource(file_path: str, classroom_id: int, resource_id: int) -> bool:
-    """
-    Index a PDF resource into ChromaDB.
-    Automatically detects handwritten PDFs and uses OCR (Tesseract) for those,
-    and PyMuPDF direct-text extraction for regular text-based PDFs.
-    """
+def index_resource(file_path: str, classroom_id: int, resource_id: int, resource_type: str = 'notes') -> bool:
     try:
         from Backend.rag_pipeline.indexing.detector import is_handwritten
         from Backend.rag_pipeline.indexing.extractors import extract_text
-        from Backend.rag_pipeline.indexing.chunker import create_langchain_documents
 
-        print(f"[RAG] Detecting document type for: {file_path}")
+        print(f"[RAG] Detecting document type for: {file_path} (type: {resource_type})")
         hw = is_handwritten(file_path)
         print(f"[RAG] Handwritten: {hw}")
 
@@ -42,18 +57,30 @@ def index_resource(file_path: str, classroom_id: int, resource_id: int) -> bool:
 
         print(f"[RAG] Extracted {len(pages)} pages")
 
-        documents = create_langchain_documents(pages)
+        if resource_type == 'pyq':
+            from Backend.rag_pipeline.indexing.qp_chunker import smart_chunk_question_paper
+            extra_meta = {
+                "classroom_id": classroom_id,
+                "resource_id": resource_id,
+                "source": file_path,
+            }
+            documents = smart_chunk_question_paper(pages, extra_metadata=extra_meta)
+        else:
+            from Backend.rag_pipeline.indexing.chunker import create_langchain_documents
+            documents = create_langchain_documents(pages)
+            chunk_type = 'note' if resource_type == 'notes' else resource_type
+            for doc in documents:
+                doc.metadata["classroom_id"] = classroom_id
+                doc.metadata["resource_id"] = resource_id
+                doc.metadata["source"] = file_path
+                doc.metadata["chunk_type"] = chunk_type
+
         if not documents:
             print(f"[RAG] No chunks created from {file_path}")
             return False
 
-        # Attach classroom and resource metadata to every chunk
-        for doc in documents:
-            doc.metadata["classroom_id"] = classroom_id
-            doc.metadata["resource_id"] = resource_id
-
-        print(f"[RAG] Indexing {len(documents)} chunks into Chroma for classroom {classroom_id}")
-        vectorstore = get_chroma_client(classroom_id)
+        vectorstore = get_vectorstore(classroom_id)
+        print(f"[RAG] Indexing {len(documents)} chunks into collection {vectorstore._collection.name} (classroom {classroom_id})")
         vectorstore.add_documents(documents)
 
         print(f"[RAG] Successfully indexed resource {resource_id}")
@@ -66,10 +93,7 @@ def index_resource(file_path: str, classroom_id: int, resource_id: int) -> bool:
         return False
 
 
-def index_resource_from_url(url: str, classroom_id: int, resource_id: int) -> bool:
-    """
-    Download a PDF from a URL, then index it using the OCR-aware pipeline.
-    """
+def index_resource_from_url(url: str, classroom_id: int, resource_id: int, resource_type: str = 'notes') -> bool:
     import tempfile
     import httpx
     try:
@@ -80,7 +104,7 @@ def index_resource_from_url(url: str, classroom_id: int, resource_id: int) -> bo
             tmp_file.write(response.content)
             tmp_path = tmp_file.name
 
-        result = index_resource(tmp_path, classroom_id, resource_id)
+        result = index_resource(tmp_path, classroom_id, resource_id, resource_type)
         os.remove(tmp_path)
         return result
 
@@ -91,18 +115,134 @@ def index_resource_from_url(url: str, classroom_id: int, resource_id: int) -> bo
         return False
 
 
-def query_resources(query: str, classroom_id: int, k: int = 4):
+def index_question_paper(file_path: str, classroom_id: int, resource_id: int) -> bool:
     try:
-        vectorstore = get_chroma_client(classroom_id)
-        results = vectorstore.similarity_search(
-            query,
-            k=k,
-            filter={"classroom_id": classroom_id}
-        )
+        from Backend.rag_pipeline.indexing.detector import is_handwritten
+        from Backend.rag_pipeline.indexing.extractors import extract_text
+        from Backend.rag_pipeline.indexing.qp_chunker import smart_chunk_question_paper
+
+        print(f"[RAG] Processing question paper: {file_path}")
+        hw = is_handwritten(file_path)
+        pages = extract_text(file_path, is_handwritten=hw)
+
+        if not pages:
+            print(f"[RAG] No text extracted from {file_path}")
+            return False
+
+        extra_meta = {
+            "classroom_id": classroom_id,
+            "resource_id": resource_id,
+            "source": file_path,
+        }
+
+        documents = smart_chunk_question_paper(pages, extra_metadata=extra_meta)
+
+        if not documents:
+            print(f"[RAG] No question chunks created")
+            return False
+
+        print(f"[RAG] Indexing {len(documents)} question chunks for classroom {classroom_id}")
+        vectorstore = get_vectorstore(classroom_id)
+        vectorstore.add_documents(documents)
+
+        print(f"[RAG] Successfully indexed QP resource {resource_id}")
+        return True
+
+    except Exception as e:
+        print(f"[RAG] Error indexing question paper: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def index_question_paper_from_url(url: str, classroom_id: int, resource_id: int) -> bool:
+    import tempfile
+    import httpx
+    try:
+        response = httpx.get(url, timeout=60.0)
+        response.raise_for_status()
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            tmp_file.write(response.content)
+            tmp_path = tmp_file.name
+
+        result = index_question_paper(tmp_path, classroom_id, resource_id)
+        os.remove(tmp_path)
+        return result
+
+    except Exception as e:
+        print(f"[RAG] Error downloading/indexing QP from URL: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def query_resources(
+    query: str,
+    classroom_id: int,
+    k: int = 4,
+    chunk_type: str | None = None,
+    answer_type: str | None = None,
+    year: int | None = None,
+):
+    try:
+        vectorstore = get_vectorstore(classroom_id)
+
+        where: dict = {}
+        if chunk_type:
+            where["chunk_type"] = chunk_type
+        if answer_type:
+            where["answer_type"] = answer_type
+        if year:
+            where["year"] = year
+
+        if where:
+            results = vectorstore.similarity_search(query, k=k, filter=where)
+        else:
+            results = vectorstore.similarity_search(query, k=k)
+
         return results
+
     except Exception as e:
         print(f"[RAG] Error querying resources: {e}")
         return []
+
+
+def delete_resource_from_vectorstore(classroom_id: int, resource_id: int):
+    try:
+        vectorstore = get_vectorstore(classroom_id)
+        vectorstore._collection.delete(where={"resource_id": resource_id})
+        print(f"[RAG] Deleted vectorstore entries for resource {resource_id} in classroom {classroom_id}")
+        return True
+    except Exception as e:
+        print(f"[RAG] Error deleting resource {resource_id} from vectorstore: {e}")
+        return False
+
+
+def find_related_notes(question_text: str, classroom_id: int, k: int = 3):
+    return query_resources(
+        query=question_text,
+        classroom_id=classroom_id,
+        k=k,
+        chunk_type="note",
+    )
+
+
+def find_similar_questions(
+    query: str,
+    classroom_id: int,
+    k: int = 5,
+    answer_type: str | None = None,
+    year: int | None = None,
+):
+    return query_resources(
+        query=query,
+        classroom_id=classroom_id,
+        k=k,
+        chunk_type="question",
+        answer_type=answer_type,
+        year=year,
+    )
 
 
 def format_context(results):
@@ -162,9 +302,8 @@ Context:
         prompt = ChatPromptTemplate.from_messages(messages)
 
         llm = ChatGroq(
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile",
             temperature=0.7,
-            api_key=os.getenv("GROQ_API_KEY")
         )
 
         chain = prompt | llm
@@ -187,9 +326,8 @@ def generate_conversation_title(query: str) -> str:
         ])
 
         llm = ChatGroq(
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile",
             temperature=0.3,
-            api_key=os.getenv("GROQ_API_KEY")
         )
 
         chain = prompt | llm

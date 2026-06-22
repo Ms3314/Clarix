@@ -4,12 +4,13 @@ import { Camera, Trash2, LogOut, Check, X } from "lucide-react"
 import { toast } from "sonner"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import { useAuth } from "@/contexts/AuthContext"
+import useAuthStore from "@/stores/authStore"
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const { user: authUser, refreshUser } = useAuth()
-  const [user, setUser] = useState(null)
+  const fetchUser = useAuthStore((s) => s.fetchUser)
+  const logout = useAuthStore((s) => s.logout)
+  const [user, setLocalUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -24,7 +25,7 @@ export default function SettingsPage() {
     try {
       setLoading(true)
       const response = await api.get("/profile/me/details")
-      setUser(response.data)
+      setLocalUser(response.data)
       if (response.data.profile_picture_url) {
         setPreviewUrl(response.data.profile_picture_url)
       }
@@ -40,20 +41,17 @@ export default function SettingsPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
       toast.error("Please select an image file")
       return
     }
 
-    // Validate file size (5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("File size must be less than 5MB")
       return
     }
 
     setSelectedFile(file)
-    // Show preview
     const reader = new FileReader()
     reader.onload = (e) => {
       setPreviewUrl(e.target?.result)
@@ -78,12 +76,12 @@ export default function SettingsPage() {
         },
       })
 
-      setUser({
+      setLocalUser({
         ...user,
         profile_picture_url: response.data.profile_picture_url,
       })
       setSelectedFile(null)
-      refreshUser()
+      fetchUser(true)
       toast.success("Profile picture updated successfully!")
     } catch (error) {
       console.error("Upload failed:", error)
@@ -103,12 +101,12 @@ export default function SettingsPage() {
       setDeleting(true)
       await api.delete("/profile/picture")
 
-      setUser({
+      setLocalUser({
         ...user,
         profile_picture_url: null,
       })
       setPreviewUrl(null)
-      refreshUser()
+      fetchUser(true)
       toast.success("Profile picture deleted successfully!")
     } catch (error) {
       console.error("Delete failed:", error)
@@ -124,7 +122,7 @@ export default function SettingsPage() {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem("clarix_token")
+    logout()
     toast.success("Logged out successfully")
     navigate("/")
   }

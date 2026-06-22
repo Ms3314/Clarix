@@ -1,15 +1,24 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Check, LogIn, FileText, Link } from 'lucide-react'
+import { Plus, Check, LogIn, FileText, Link, MoreVertical, GraduationCap } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import { useSidebar } from '@/components/ui/sidebar'
 import ProfilePictureAvatar from '@/components/ProfilePictureAvatar'
+import useAuthStore from '@/stores/authStore'
+import useClassroomStore from '@/stores/classroomStore'
 
 const Dashboard = () => {
-  const [user, setUser] = useState(null)
-  const [classrooms, setClassrooms] = useState([])
-  const [loading, setLoading] = useState(true)
+  const user = useAuthStore((s) => s.user)
+  const fetchUser = useAuthStore((s) => s.fetchUser)
+  const { classrooms, fetchClassrooms, invalidate: invalidateClassrooms } = useClassroomStore()
+  const [pageLoading, setPageLoading] = useState(true)
   const [copiedId, setCopiedId] = useState(null)
   const [inviteCode, setInviteCode] = useState('')
   const [joining, setJoining] = useState(false)
@@ -26,7 +35,11 @@ const Dashboard = () => {
   }
 
   useEffect(() => {
-    fetchClassrooms()
+    const init = async () => {
+      await Promise.all([fetchUser(), fetchClassrooms()])
+      setPageLoading(false)
+    }
+    init()
   }, [])
 
   useEffect(() => {
@@ -34,20 +47,6 @@ const Dashboard = () => {
       fetchTeacherResources()
     }
   }, [user])
-
-  const fetchClassrooms = async () => {
-    try {
-      const userRes = await api.get('/auth/me')
-      setUser(userRes.data)
-      const res = await api.get('/classrooms/')
-      setClassrooms(res.data.classrooms || [])
-    } catch (error) {
-      toast.error('Failed to load dashboard')
-      if (error.response?.status === 401) navigate('/')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const fetchTeacherResources = async () => {
     setResourcesLoading(true)
@@ -89,7 +88,7 @@ const Dashboard = () => {
     setOpenMobile(false)
   }
 
-  if (loading) {
+  if (pageLoading) {
     return (
       <div className="flex items-center justify-center p-12 min-h-[60vh]">
         <div className="text-lg text-zinc-400">Loading...</div>
@@ -109,13 +108,22 @@ const Dashboard = () => {
           </div>
 
           {user?.role === 'teacher' && (
-            <button
-              onClick={() => navigate('/classroom/new')}
-              className="flex items-center gap-2 px-5 py-3 text-xs uppercase tracking-widest font-bold border transition-all cursor-pointer bg-[#1c1b1a] text-white border-zinc-900 hover:bg-[#faf7f3] hover:text-[#1c1b1a]"
-            >
-              <Plus className="w-4 h-4" />
-              Add New Classroom
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center justify-center w-8 h-8 rounded border border-[#e0dcd6] text-zinc-400 hover:bg-zinc-50 hover:border-zinc-400 hover:text-zinc-600 transition-all cursor-pointer">
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[160px] p-1">
+                <DropdownMenuItem
+                  onClick={() => navigate('/classroom/new')}
+                  className="text-xs gap-2 cursor-pointer rounded-md"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add New Classroom
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
 
@@ -173,8 +181,17 @@ const Dashboard = () => {
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.target.style.display = 'none'
-                        e.target.parentElement.style.background = `linear-gradient(135deg, ${fallbackColor}, ${fallbackColor}dd)`
+                        if (cls.banner_color) {
+                          e.target.parentElement.style.background = cls.banner_color.startsWith('linear-gradient') ? cls.banner_color : `linear-gradient(135deg, ${cls.banner_color}, ${cls.banner_color}dd)`
+                        } else {
+                          e.target.parentElement.style.background = `linear-gradient(135deg, ${fallbackColor}, ${fallbackColor}dd)`
+                        }
                       }}
+                    />
+                  ) : cls.banner_color ? (
+                    <div
+                      className="w-full h-full"
+                      style={{ background: cls.banner_color.startsWith('linear-gradient') ? cls.banner_color : `linear-gradient(135deg, ${cls.banner_color}, ${cls.banner_color}dd)` }}
                     />
                   ) : (
                     <div
@@ -203,28 +220,42 @@ const Dashboard = () => {
                   </div>
                 </div>
 
+                {/* Teacher badge */}
+                {user?.id === cls.teacher_id && (
+                  <div className="absolute top-2 left-2 z-10 flex items-center gap-1 px-2 py-0.5 rounded bg-black/50 text-white text-[9px] font-semibold uppercase tracking-wider backdrop-blur-sm">
+                    <GraduationCap className="w-3 h-3" />
+                    Teacher
+                  </div>
+                )}
+
                 {/* Bottom bar */}
                 <div className="px-4 pb-3 flex items-center justify-between">
                   <span className="text-[10px] text-zinc-400 uppercase tracking-wider">
                     {cls.student_count || 0} students
                   </span>
-                  <button
-                    onClick={(e) => handleCopyLink(e, cls.id, cls.invite_code)}
-                    className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded border border-[#e0dcd6] text-zinc-600 hover:bg-zinc-50 hover:border-zinc-400 transition-all cursor-pointer"
-                    title="Copy Join Link"
-                  >
-                    {copiedId === cls.id ? (
-                      <>
-                        <Check className="w-3 h-3 text-emerald-500" />
-                        Copied
-                      </>
-                    ) : (
-                      <>
-                        <Link className="w-3 h-3" />
-                        Copy Link
-                      </>
-                    )}
-                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center justify-center w-7 h-7 rounded border border-[#e0dcd6] text-zinc-400 hover:bg-zinc-50 hover:border-zinc-400 hover:text-zinc-600 transition-all cursor-pointer"
+                      >
+                        <MoreVertical className="w-3.5 h-3.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-[140px]">
+                      <DropdownMenuItem
+                        onClick={(e) => handleCopyLink(e, cls.id, cls.invite_code)}
+                        className="text-xs gap-2 cursor-pointer"
+                      >
+                        {copiedId === cls.id ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        ) : (
+                          <Link className="w-3.5 h-3.5" />
+                        )}
+                        {copiedId === cls.id ? 'Copied!' : 'Copy Link'}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             )
@@ -271,9 +302,16 @@ const Dashboard = () => {
                         {doc.file_size && ` · ${(doc.file_size / 1024).toFixed(0)} KB`}
                       </p>
                     </div>
-                    <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 border ${doc.indexed ? 'text-emerald-600 border-emerald-200 bg-emerald-50' : 'text-amber-600 border-amber-200 bg-amber-50'}`}>
-                      {doc.indexed ? 'Indexed' : 'Pending'}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {doc.resource_type && (
+                        <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 border ${doc.resource_type === 'pyq' ? 'text-amber-600 border-amber-200 bg-amber-50' : doc.resource_type === 'notes' ? 'text-blue-600 border-blue-200 bg-blue-50' : 'text-zinc-500 border-zinc-200 bg-zinc-50'}`}>
+                          {doc.resource_type === 'pyq' ? 'PYQ' : doc.resource_type === 'notes' ? 'Notes' : 'Other'}
+                        </span>
+                      )}
+                      <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 border ${doc.indexed ? 'text-emerald-600 border-emerald-200 bg-emerald-50' : 'text-amber-600 border-amber-200 bg-amber-50'}`}>
+                        {doc.indexed ? 'Indexed' : 'Pending'}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -2,145 +2,96 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Edit3, Folder, HelpCircle, Users, Sparkles, Megaphone, CheckSquare,
-  Plus, Trash2, FileText, Sigma, FlaskConical, Scroll, Link, X, FolderPlus,
-  ChevronRight,
+  Trash2, FileText, Link, X, MoreVertical,
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
+import ResourceBrowser from '@/components/classroom/ResourceBrowser'
+import PdfViewerPanel from '@/components/classroom/PdfViewerPanel'
+import ClassroomSettings from '@/components/classroom/ClassroomSettings'
 import api from '@/lib/api'
 import { toast } from 'sonner'
-import { Document, Page, pdfjs } from 'react-pdf'
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+import useAuthStore from '@/stores/authStore'
+import useClassroomDetailStore from '@/stores/classroomDetailStore'
+import useUploadStore from '@/stores/uploadStore'
 
 const ClassroomDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [classroom, setClassroom] = useState(null)
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('Overview')
-  const [students, setStudents] = useState([])
-  const [resources, setResources] = useState([])
-  const [quizzes, setQuizzes] = useState([])
-  const [announcements, setAnnouncements] = useState([])
+  const numericId = Number(id)
 
+  const user = useAuthStore((s) => s.user)
+  const fetchUser = useAuthStore((s) => s.fetchUser)
+  const {
+    getEntityData, fetchAll, fetchPending: fetchPendingStore,
+    invalidateEntity, setEntityData,
+    fetchStudents: fetchStudentsStore, fetchResources: fetchResourcesStore,
+    fetchQuizzes: fetchQuizzesStore, fetchAnnouncements: fetchAnnouncementsStore,
+    fetchFolders: fetchFoldersStore,
+  } = useClassroomDetailStore()
+
+  const classroom = getEntityData(numericId, 'classroom')
+  const students = getEntityData(numericId, 'students') || []
+  const resources = getEntityData(numericId, 'resources') || []
+  const quizzes = getEntityData(numericId, 'quizzes') || []
+  const announcements = getEntityData(numericId, 'announcements') || []
+  const folders = getEntityData(numericId, 'folders') || []
+  const pendingStudents = getEntityData(numericId, 'pending') || []
+
+  const [pageLoading, setPageLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('Overview')
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
-
   const [announcementMsg, setAnnouncementMsg] = useState('')
   const [announcementPosting, setAnnouncementPosting] = useState(false)
-
   const [studentName, setStudentName] = useState('')
   const [studentEmail, setStudentEmail] = useState('')
   const [inviteLoading, setInviteLoading] = useState(false)
-
-  const [uploading, setUploading] = useState(false)
-  const [resourceFile, setResourceFile] = useState(null)
-  const [pendingStudents, setPendingStudents] = useState([])
+  const [showUploadDialog, setShowUploadDialog] = useState(false)
+  const [dialogFiles, setDialogFiles] = useState([])
+  const [dialogFileTypes, setDialogFileTypes] = useState([])
   const [actionLoading, setActionLoading] = useState(null)
-
   const [quizTitle, setQuizTitle] = useState('')
   const [quizQuestions, setQuizQuestions] = useState(5)
   const [quizCreating, setQuizCreating] = useState(false)
-
   const [generatingAI, setGeneratingAI] = useState(false)
   const [aiMaterial, setAiMaterial] = useState(null)
   const [showAIModal, setShowAIModal] = useState(false)
-
-  const [folders, setFolders] = useState([])
   const [selectedFolderId, setSelectedFolderId] = useState(null)
   const [viewingResource, setViewingResource] = useState(null)
-  const [folderNameInput, setFolderNameInput] = useState('')
-  const [showFolderInput, setShowFolderInput] = useState(false)
-  const [dragId, setDragId] = useState(null)
-  const [dragOverFolderId, setDragOverFolderId] = useState(null)
+  const uploadActive = useUploadStore((s) => s.queue.some((q) => q.status === 'pending' || q.status === 'uploading'))
 
   useEffect(() => {
-    fetchAll()
-  }, [id])
+    const fetchAllData = async () => {
+      setPageLoading(true)
+      try {
+        await Promise.all([fetchUser(), fetchAll(numericId)])
+      } catch (error) {
+        toast.error('Failed to load classroom')
+        if (error.response?.status === 401) navigate('/')
+      } finally {
+        setPageLoading(false)
+      }
+    }
+    fetchAllData()
+  }, [numericId])
 
   useEffect(() => {
-    if (activeTab === 'Students' && classroom && user?.role === 'teacher') {
-      fetchPending(classroom)
+    if (activeTab === 'Students' && user?.role === 'teacher') {
+      fetchPendingStore(numericId, true)
     }
-  }, [activeTab, classroom?.id, user?.role])
-
-  const fetchAll = async () => {
-    setLoading(true)
-    try {
-      const [userRes, classRes] = await Promise.all([
-        api.get('/auth/me'),
-        api.get(`/classrooms/${id}`),
-      ])
-      setUser(userRes.data)
-      const cls = { ...classRes.data, icon: classRes.data.icon || 'sigma' }
-      setClassroom(cls)
-      setEditName(cls.name)
-
-      await Promise.all([
-        fetchStudents(cls),
-        fetchResources(cls),
-        fetchQuizzes(cls),
-        fetchAnnouncements(cls),
-        fetchFolders(cls),
-      ])
-      fetchPending(cls, userRes.data)
-    } catch (error) {
-      toast.error('Failed to load classroom')
-      if (error.response?.status === 401) navigate('/')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchStudents = async (cls) => {
-    try {
-      const res = await api.get(`/classrooms/${cls.id}/students`)
-      setStudents(res.data.students || [])
-    } catch { setStudents([]) }
-  }
-
-  const fetchPending = async (cls, userData) => {
-    const currentUser = userData || user
-    if (currentUser?.role !== 'teacher') return
-    try {
-      const res = await api.get(`/classrooms/${cls.id}/pending`)
-      setPendingStudents(res.data.pending || [])
-    } catch { setPendingStudents([]) }
-  }
-
-  const fetchResources = async (cls) => {
-    try {
-      const res = await api.get(`/classrooms/${cls.id}/resources`)
-      setResources(res.data.resources || [])
-    } catch { setResources([]) }
-  }
-
-  const fetchQuizzes = async (cls) => {
-    try {
-      const res = await api.get(`/classrooms/${cls.id}/quizzes`)
-      setQuizzes(res.data.quizzes || [])
-    } catch { setQuizzes([]) }
-  }
-
-  const fetchAnnouncements = async (cls) => {
-    try {
-      const res = await api.get(`/classrooms/${cls.id}/announcements`)
-      setAnnouncements(res.data.announcements || [])
-    } catch { setAnnouncements([]) }
-  }
-
-  const fetchFolders = async (cls) => {
-    try {
-      const res = await api.get(`/classrooms/${cls.id}/folders`)
-      setFolders(res.data.folders || [])
-    } catch { setFolders([]) }
-  }
+  }, [activeTab, numericId, user?.role])
 
   const saveEditedName = async (e) => {
     e.preventDefault()
     if (!editName.trim()) return
     try {
-      await api.put(`/classrooms/${id}`, { name: editName })
-      setClassroom((prev) => ({ ...prev, name: editName }))
+      await api.put(`/classrooms/${numericId}`, { name: editName })
+      setEntityData(numericId, 'classroom', { ...classroom, name: editName })
       setIsEditing(false)
       toast.success('Name updated')
     } catch (err) {
@@ -153,13 +104,14 @@ const ClassroomDetail = () => {
     if (!announcementMsg.trim()) return
     setAnnouncementPosting(true)
     try {
-      await api.post(`/classrooms/${id}/announcements`, {
+      await api.post(`/classrooms/${numericId}/announcements`, {
         title: announcementMsg.slice(0, 50),
         content: announcementMsg,
       })
       toast.success('Announcement posted!')
       setAnnouncementMsg('')
-      fetchAnnouncements(classroom)
+      invalidateEntity(numericId, 'announcements')
+      fetchAnnouncementsStore(numericId, true)
     } catch (err) {
       toast.error('Failed to post announcement')
     } finally {
@@ -169,9 +121,10 @@ const ClassroomDetail = () => {
 
   const handleDeleteAnnouncement = async (annId) => {
     try {
-      await api.delete(`/classrooms/${id}/announcements/${annId}`)
+      await api.delete(`/classrooms/${numericId}/announcements/${annId}`)
       toast.success('Announcement deleted')
-      fetchAnnouncements(classroom)
+      invalidateEntity(numericId, 'announcements')
+      fetchAnnouncementsStore(numericId, true)
     } catch {
       toast.error('Failed to delete')
     }
@@ -182,11 +135,12 @@ const ClassroomDetail = () => {
     if (!studentEmail.trim()) return
     setInviteLoading(true)
     try {
-      await api.post(`/classrooms/${id}/invite`, { email: studentEmail.trim() })
+      await api.post(`/classrooms/${numericId}/invite`, { email: studentEmail.trim() })
       toast.success('Student invited!')
       setStudentEmail('')
       setStudentName('')
-      fetchStudents(classroom)
+      invalidateEntity(numericId, 'students')
+      fetchStudentsStore(numericId, true)
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to invite')
     } finally {
@@ -197,10 +151,12 @@ const ClassroomDetail = () => {
   const handleApproveStudent = async (studentId) => {
     setActionLoading(studentId)
     try {
-      await api.post(`/classrooms/${id}/pending/${studentId}/approve`)
+      await api.post(`/classrooms/${numericId}/pending/${studentId}/approve`)
       toast.success('Student approved!')
-      setPendingStudents((prev) => prev.filter((s) => s.id !== studentId))
-      fetchStudents(classroom)
+      invalidateEntity(numericId, 'pending')
+      invalidateEntity(numericId, 'students')
+      fetchPendingStore(numericId, true)
+      fetchStudentsStore(numericId, true)
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to approve')
     } finally {
@@ -211,9 +167,10 @@ const ClassroomDetail = () => {
   const handleRejectStudent = async (studentId) => {
     setActionLoading(studentId)
     try {
-      await api.delete(`/classrooms/${id}/pending/${studentId}/reject`)
+      await api.delete(`/classrooms/${numericId}/pending/${studentId}/reject`)
       toast.success('Request rejected')
-      setPendingStudents((prev) => prev.filter((s) => s.id !== studentId))
+      invalidateEntity(numericId, 'pending')
+      fetchPendingStore(numericId, true)
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to reject')
     } finally {
@@ -221,46 +178,45 @@ const ClassroomDetail = () => {
     }
   }
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const handleFileSelected = (e) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
 
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      toast.error('Only PDF files are allowed')
-      return
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('File must be under 10MB')
-      return
-    }
-
-    setUploading(true)
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      if (selectedFolderId) {
-        formData.append('folder_id', String(selectedFolderId))
+    const valid = []
+    for (const f of files) {
+      if (!f.name.toLowerCase().endsWith('.pdf')) {
+        toast.error(`"${f.name}" is not a PDF`)
+        continue
       }
-      await api.post(`/classrooms/${id}/resources/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-      toast.success('Resource uploaded successfully!')
-      fetchResources(classroom)
-    } catch (err) {
-      toast.error(err.response?.data?.detail || err.message || 'Upload failed')
-    } finally {
-      setUploading(false)
-      setResourceFile(null)
+      if (f.size > 10 * 1024 * 1024) {
+        toast.error(`"${f.name}" exceeds 10MB limit`)
+        continue
+      }
+      valid.push(f)
     }
+
+    if (valid.length === 0) return
+
+    setDialogFiles(valid)
+    setDialogFileTypes(valid.map(() => 'notes'))
+    setShowUploadDialog(true)
+    e.target.value = ''
   }
 
-  const handleCreateFolder = async () => {
-    if (!folderNameInput.trim()) return
+  const handleConfirmUpload = () => {
+    if (dialogFiles.length === 0) return
+    useUploadStore.getState().addFiles(dialogFiles, dialogFileTypes, numericId, selectedFolderId)
+    setShowUploadDialog(false)
+    setDialogFiles([])
+    setDialogFileTypes([])
+  }
+
+  const handleCreateFolder = async (name, parentId) => {
+    if (!name.trim()) return
     try {
-      await api.post(`/classrooms/${id}/folders`, { name: folderNameInput.trim() })
-      setFolderNameInput('')
-      setShowFolderInput(false)
-      fetchFolders(classroom)
+      await api.post(`/classrooms/${numericId}/folders`, { name: name.trim(), parent_id: parentId || null })
+      invalidateEntity(numericId, 'folders')
+      fetchFoldersStore(numericId, true)
       toast.success('Folder created')
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to create folder')
@@ -269,8 +225,9 @@ const ClassroomDetail = () => {
 
   const handleDeleteFolder = async (folderId) => {
     try {
-      await api.delete(`/classrooms/${id}/folders/${folderId}`)
-      fetchFolders(classroom)
+      await api.delete(`/classrooms/${numericId}/folders/${folderId}`)
+      invalidateEntity(numericId, 'folders')
+      fetchFoldersStore(numericId, true)
       if (selectedFolderId === folderId) setSelectedFolderId(null)
       toast.success('Folder deleted')
     } catch { toast.error('Failed to delete folder') }
@@ -278,52 +235,19 @@ const ClassroomDetail = () => {
 
   const handleMoveResource = async (resourceId, folderId) => {
     try {
-      await api.put(`/classrooms/${id}/resources/${resourceId}/move`, { folder_id: folderId })
-      fetchResources(classroom)
+      await api.put(`/classrooms/${numericId}/resources/${resourceId}/move`, { folder_id: folderId })
+      invalidateEntity(numericId, 'resources')
+      fetchResourcesStore(numericId, true)
       toast.success('Resource moved')
     } catch { toast.error('Failed to move resource') }
   }
 
-  const handleDragStart = (e, resId) => {
-    setDragId(resId)
-    e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', String(resId))
-  }
-
-  const handleDragOver = (e) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-  }
-
-  const handleDragEnter = (folderId) => {
-    setDragOverFolderId(folderId)
-  }
-
-  const handleDragLeave = () => {
-    setDragOverFolderId(null)
-  }
-
-  const handleDropOnFolder = (e, folderId) => {
-    e.preventDefault()
-    setDragOverFolderId(null)
-    if (dragId) handleMoveResource(dragId, folderId)
-    setDragId(null)
-  }
-
-  const filteredResources = selectedFolderId
-    ? resources.filter((r) => r.folder_id === selectedFolderId)
-    : resources.filter((r) => !r.folder_id)
-
-  const rootFolders = folders.filter((f) => !f.parent_id)
-  const currentFolderName = selectedFolderId
-    ? folders.find((f) => f.id === selectedFolderId)?.name || 'Folder'
-    : 'All Files'
-
   const handleDeleteResource = async (resourceId) => {
     try {
-      await api.delete(`/classrooms/${id}/resources/${resourceId}`)
+      await api.delete(`/classrooms/${numericId}/resources/${resourceId}`)
       toast.success('Resource deleted')
-      fetchResources(classroom)
+      invalidateEntity(numericId, 'resources')
+      fetchResourcesStore(numericId, true)
     } catch {
       toast.error('Failed to delete')
     }
@@ -334,7 +258,7 @@ const ClassroomDetail = () => {
     if (!quizTitle.trim()) return
     setQuizCreating(true)
     try {
-      await api.post(`/classrooms/${id}/quizzes`, {
+      await api.post(`/classrooms/${numericId}/quizzes`, {
         title: quizTitle,
         description: `${quizQuestions} questions`,
         questions: [],
@@ -342,7 +266,8 @@ const ClassroomDetail = () => {
       })
       toast.success('Quiz created!')
       setQuizTitle('')
-      fetchQuizzes(classroom)
+      invalidateEntity(numericId, 'quizzes')
+      fetchQuizzesStore(numericId, true)
     } catch (err) {
       toast.error('Failed to create quiz')
     } finally {
@@ -354,8 +279,8 @@ const ClassroomDetail = () => {
     setGeneratingAI(true)
     setAiMaterial(null)
     try {
-      const res = await api.post(`/classrooms/${id}/chat`, {
-        query: `Generate a comprehensive review sheet for "${classroom.name}" covering all key topics. Include study tips and practice questions.`,
+      const res = await api.post(`/classrooms/${numericId}/chat`, {
+        query: `Generate a comprehensive review sheet for "${classroom?.name}" covering all key topics. Include study tips and practice questions.`,
       })
       const content = res.data.response || 'No content generated.'
       setAiMaterial(content)
@@ -373,22 +298,13 @@ const ClassroomDetail = () => {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `Review-${classroom.name}-${new Date().toISOString().split('T')[0]}.txt`
+    a.download = `Review-${classroom?.name}-${new Date().toISOString().split('T')[0]}.txt`
     a.click()
     toast.success('Review downloaded! Upload it as a PDF resource in the Resources tab.')
     setShowAIModal(false)
   }
 
-  const getIcon = (iconName) => {
-    switch (iconName) {
-      case 'sigma': return <Sigma className="w-4 h-4" />
-      case 'flask': return <FlaskConical className="w-4 h-4" />
-      case 'scroll': return <Scroll className="w-4 h-4" />
-      default: return <Sigma className="w-4 h-4" />
-    }
-  }
-
-  if (loading) {
+  if (pageLoading) {
     return (
       <div className="flex items-center justify-center p-12 min-h-[60vh]">
         <div className="text-lg text-zinc-400">Loading classroom...</div>
@@ -404,8 +320,18 @@ const ClassroomDetail = () => {
     )
   }
 
-  const tabs = ['Overview', 'Announcements', 'Students', 'Resources', 'Quizzes']
   const isTeacher = user?.role === 'teacher'
+
+  const featureTabs = [
+    { key: 'Announcements', flag: classroom?.announcements_enabled ?? true },
+    { key: 'Resources', flag: classroom?.resources_enabled ?? true },
+    { key: 'Quizzes', flag: classroom?.quizzes_enabled ?? true },
+  ]
+
+  const baseTabs = ['Overview', 'Students']
+  const extraTabs = featureTabs.filter((t) => t.flag).map((t) => t.key)
+  const settingsTab = isTeacher ? ['Settings'] : []
+  const tabs = [...baseTabs, ...extraTabs, ...settingsTab]
 
   return (
     <div className="p-6">
@@ -439,9 +365,6 @@ const ClassroomDetail = () => {
             ) : (
               <div className="flex items-start gap-3">
                 <div>
-                  {/* <span className="text-[9px]  tracking-widest text-[#b45309] uppercase block mb-1">
-                    Workspace Archives / Ref: {classroom.invite_code}
-                  </span> */}
                   <h1 className="text-2xl lg:text-3xl font-serif font-semibold  tracking-tight leading-none text-[#1c1b1a]">
                     {classroom.name}
                   </h1>
@@ -451,26 +374,33 @@ const ClassroomDetail = () => {
           </div>
 
           {isTeacher && (
-            <>
-              <button
-                onClick={() => { setIsEditing(true); setEditName(classroom.name) }}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs uppercase tracking-wider font-semibold border transition-all cursor-pointer border-zinc-300 hover:border-[#1c1b1a] hover:bg-[#1c1b1a] hover:text-white text-zinc-700 bg-transparent"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                Edit Class Label
-              </button>
-              <button
-                onClick={() => {
-                  const link = `${window.location.origin}/join/${classroom.invite_code}`
-                  navigator.clipboard.writeText(link)
-                  toast.success('Join link copied!')
-                }}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs uppercase tracking-wider font-semibold border transition-all cursor-pointer border-zinc-300 hover:border-[#1c1b1a] hover:bg-[#1c1b1a] hover:text-white text-zinc-700 bg-transparent"
-              >
-                <Link className="w-3.5 h-3.5" />
-                Share Link
-              </button>
-            </>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center justify-center w-8 h-8 rounded border border-zinc-300 text-zinc-500 hover:bg-zinc-100 hover:border-zinc-400 transition-all cursor-pointer">
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[160px]">
+                <DropdownMenuItem
+                  onClick={() => { setIsEditing(true); setEditName(classroom.name) }}
+                  className="text-xs gap-2 cursor-pointer"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  Edit Class Label
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    const link = `${window.location.origin}/join/${classroom.invite_code}`
+                    navigator.clipboard.writeText(link)
+                    toast.success('Join link copied!')
+                  }}
+                  className="text-xs gap-2 cursor-pointer"
+                >
+                  <Link className="w-3.5 h-3.5" />
+                  Share Link
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
 
@@ -496,8 +426,8 @@ const ClassroomDetail = () => {
           <div className="space-y-8 animate-fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               {[
-                { label: 'Resources', icon: Folder, count: resources.length, tab: 'Resources' },
-                { label: 'Quizzes', icon: HelpCircle, count: quizzes.length, tab: 'Quizzes' },
+                ...(classroom?.resources_enabled ?? true ? [{ label: 'Resources', icon: Folder, count: resources.length, tab: 'Resources' }] : []),
+                ...(classroom?.quizzes_enabled ?? true ? [{ label: 'Quizzes', icon: HelpCircle, count: quizzes.length, tab: 'Quizzes' }] : []),
                 { label: 'Students', icon: Users, count: students.length, tab: 'Students' },
               ].map((item) => (
                 <div
@@ -586,9 +516,9 @@ const ClassroomDetail = () => {
               </div>
 
               {/* Right Widgets */}
-              <div className="space-y-6">
+              {/* <div className="space-y-6">
                 {/* AI Insights */}
-                <div className="rounded-2xl border p-6 flex flex-col justify-between transition-colors duration-300 bg-gradient-to-b from-white to-[#fbf9f6] border-[#eae7e4] text-[#1c1b1a]">
+                {/* <div className="rounded-2xl border p-6 flex flex-col justify-between transition-colors duration-300 bg-gradient-to-b from-white to-[#fbf9f6] border-[#eae7e4] text-[#1c1b1a]">
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       <span className="p-1.5 rounded-lg bg-green-150 text-[#4a7c59]">
@@ -616,14 +546,14 @@ const ClassroomDetail = () => {
                       )}
                     </button>
                   </div>
-                </div>
+                </div> */}
 
                 {/* Upcoming */}
-                <div className="rounded-2xl border p-6 space-y-4 bg-white border-[#eae7e4]">
+                {/* <div className="rounded-2xl border p-6 space-y-4 bg-white border-[#eae7e4]">
                   <h4 className="font-bold text-sm tracking-tight font-sans text-zinc-900">Upcoming</h4>
                   <p className="text-xs text-zinc-400">No upcoming events scheduled.</p>
-                </div>
-              </div>
+                </div> */}
+              {/* </div> */}
             </div>
           </div>
         )}
@@ -811,236 +741,28 @@ const ClassroomDetail = () => {
         {/* Resources Tab */}
         {activeTab === 'Resources' && (
           <div className="animate-fade-in">
-            {/* Top Bar */}
-            {isTeacher && (
-              <div className="flex items-center gap-3 mb-6 flex-wrap">
-                <div className="border rounded-xl p-3 flex items-center gap-4 bg-white border-[#eae7e4] flex-1 min-w-0">
-                  <FileText className="w-5 h-5 text-zinc-300 shrink-0" />
-                  <label className="flex items-center gap-2 py-1.5 px-3 text-xs font-semibold rounded-lg text-white cursor-pointer bg-[#4a7c59] hover:bg-[#32533c] shrink-0">
-                    {uploading ? 'Uploading...' : 'Upload PDF'}
-                    <input type="file" accept=".pdf" className="hidden" onChange={handleFileUpload} disabled={uploading} />
-                  </label>
-                  <span className="text-2xs text-zinc-400 truncate">
-                    {selectedFolderId
-                      ? `→ ${currentFolderName}`
-                      : 'PDF files up to 10MB'}
-                  </span>
-                </div>
-                {showFolderInput ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={folderNameInput}
-                      onChange={(e) => setFolderNameInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleCreateFolder(); if (e.key === 'Escape') { setShowFolderInput(false); setFolderNameInput('') } }}
-                      className="px-3 py-2 rounded-lg border text-xs focus:outline-none bg-white border-[#d4d2d0] w-40"
-                      placeholder="Folder name"
-                      autoFocus
-                    />
-                    <button onClick={handleCreateFolder} className="p-2 text-xs font-bold text-white bg-[#4a7c59] rounded-lg hover:bg-[#32533c] cursor-pointer"><Plus className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => { setShowFolderInput(false); setFolderNameInput('') }} className="p-2 text-xs font-bold text-zinc-500 bg-white border rounded-lg hover:bg-zinc-50 cursor-pointer"><X className="w-3.5 h-3.5" /></button>
-                  </div>
-                ) : (
-                  <button onClick={() => setShowFolderInput(true)} className="flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg border border-[#d4d2d0] bg-white hover:bg-zinc-50 cursor-pointer">
-                    <FolderPlus className="w-3.5 h-3.5" />
-                    New Folder
-                  </button>
-                )}
-              </div>
-            )}
+            <ResourceBrowser
+              folders={folders}
+              resources={resources}
+              isTeacher={isTeacher}
+              selectedFolderId={selectedFolderId}
+              onSelectFolder={setSelectedFolderId}
+              onOpenFile={setViewingResource}
+              onDeleteResource={handleDeleteResource}
+              onDeleteFolder={handleDeleteFolder}
+              onCreateFolder={handleCreateFolder}
+              onMoveResource={handleMoveResource}
+              onUploadFiles={handleFileSelected}
+              uploadActive={uploadActive}
+            />
 
-            <div className="flex gap-6">
-              {/* Folder Sidebar */}
-              <div className="w-44 shrink-0">
-                <div className="space-y-0.5">
-                  <button
-                    onClick={() => setSelectedFolderId(null)}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center gap-2 ${!selectedFolderId ? 'bg-[#4a7c59] text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    All Files
-                  </button>
-                  {rootFolders.map((f) => {
-                    const subfolders = folders.filter((sf) => sf.parent_id === f.id)
-                    const isDragOver = dragOverFolderId === f.id
-                    return (
-                      <div key={f.id}>
-                        <div
-                          className={`group flex items-center gap-1 rounded-lg transition-colors ${isDragOver ? 'bg-[#4a7c59]/10 ring-2 ring-[#4a7c59]/40' : ''}`}
-                          onDragOver={handleDragOver}
-                          onDragEnter={() => handleDragEnter(f.id)}
-                          onDragLeave={handleDragLeave}
-                          onDrop={(e) => handleDropOnFolder(e, f.id)}
-                        >
-                          <button
-                            onClick={() => setSelectedFolderId(f.id)}
-                            className={`flex-1 text-left px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center gap-2 ${selectedFolderId === f.id ? 'bg-[#4a7c59] text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}
-                          >
-                            <Folder className="w-3.5 h-3.5" />
-                            <span className="truncate">{f.name}</span>
-                          </button>
-                          {isTeacher && (
-                            <button
-                              onClick={() => handleDeleteFolder(f.id)}
-                              className="p-1 text-zinc-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
-                        {subfolders.map((sf) => {
-                          const isSubDragOver = dragOverFolderId === sf.id
-                          return (
-                            <div
-                              key={sf.id}
-                              className={`ml-3 flex items-center gap-1 rounded-lg transition-colors ${isSubDragOver ? 'bg-[#4a7c59]/10 ring-2 ring-[#4a7c59]/40' : ''}`}
-                              onDragOver={handleDragOver}
-                              onDragEnter={() => handleDragEnter(sf.id)}
-                              onDragLeave={handleDragLeave}
-                              onDrop={(e) => handleDropOnFolder(e, sf.id)}
-                            >
-                              <button
-                                onClick={() => setSelectedFolderId(sf.id)}
-                                className={`flex-1 text-left px-3 py-1.5 rounded-lg text-2xs font-semibold transition-colors cursor-pointer flex items-center gap-2 ${selectedFolderId === sf.id ? 'bg-[#4a7c59] text-white' : 'text-zinc-500 hover:bg-zinc-100'}`}
-                              >
-                                <ChevronRight className="w-2.5 h-2.5" />
-                                <span className="truncate">{sf.name}</span>
-                              </button>
-                              {isTeacher && (
-                                <button onClick={() => handleDeleteFolder(sf.id)} className="p-1 text-zinc-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0"><Trash2 className="w-2.5 h-2.5" /></button>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )
-                  })}
-                </div>
-                {folders.length === 0 && isTeacher && (
-                  <p className="text-2xs text-zinc-400 mt-3 px-3">No folders yet. Create one to organize resources.</p>
-                )}
-              </div>
-
-              {/* Resource Grid */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{currentFolderName} ({filteredResources.length})</h3>
-                  {selectedFolderId && isTeacher && (
-                    <span className="text-[10px] text-zinc-400">Drag resources to move between folders</span>
-                  )}
-                </div>
-
-                {filteredResources.length === 0 ? (
-                  <div className="border-2 border-dashed border-zinc-200 rounded-xl p-16 text-center">
-                    <div className="w-14 h-14 mx-auto mb-4 rounded-xl bg-zinc-50 flex items-center justify-center">
-                      <FileText className="w-7 h-7 text-zinc-200" />
-                    </div>
-                    <p className="text-sm font-medium text-zinc-400 mb-1">This folder is empty</p>
-                    {isTeacher && <p className="text-xs text-zinc-300">Upload a PDF or drag existing resources here</p>}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
-                    {filteredResources.map((res) => (
-                      <div
-                        key={res.id}
-                        className="group bg-white border border-[#eae7e4] rounded-xl overflow-hidden hover:shadow-lg hover:border-zinc-300 transition-all duration-200 cursor-pointer"
-                        onClick={() => setViewingResource(res)}
-                        draggable={isTeacher}
-                        onDragStart={(e) => handleDragStart(e, res.id)}
-                      >
-                        {/* Thumbnail */}
-                        <div className="aspect-[4/5] bg-gradient-to-b from-zinc-50 to-zinc-100 relative overflow-hidden flex items-center justify-center p-4">
-                          <Document
-                            file={res.file_url}
-                            loading={
-                              <div className="flex flex-col items-center justify-center gap-2">
-                                <div className="w-8 h-10 rounded border border-zinc-200 bg-white animate-pulse" />
-                                <span className="text-[10px] text-zinc-300">Loading...</span>
-                              </div>
-                            }
-                            error={
-                              <div className="flex flex-col items-center justify-center text-center">
-                                <div className="w-12 h-14 mb-2 rounded-lg bg-white border border-zinc-200 flex items-center justify-center shadow-sm">
-                                  <FileText className="w-6 h-6 text-[#4a7c59]" />
-                                </div>
-                                <span className="text-[10px] text-zinc-400 font-medium leading-tight px-2 line-clamp-2">{res.filename}</span>
-                              </div>
-                            }
-                          >
-                            <Page pageNumber={1} width={180} className="[&>canvas]:rounded-lg [&>canvas]:shadow-sm" />
-                          </Document>
-
-                          {isTeacher && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDeleteResource(res.id) }}
-                              className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer shadow-sm"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-
-                          {/* Indexed badge */}
-                          {res.indexed && (
-                            <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-emerald-500/90 backdrop-blur-sm text-[9px] font-semibold text-white tracking-wide">
-                              AI Ready
-                            </div>
-                          )}
-                        </div>
-                        {/* Info */}
-                        <div className="p-3 space-y-1">
-                          <p className="text-xs font-semibold text-zinc-800 truncate leading-tight">{res.filename}</p>
-                          <div className="flex items-center gap-2 text-[10px] text-zinc-400">
-                            <span>{(res.file_size / 1024).toFixed(0)} KB</span>
-                            {res.indexed && (
-                              <>
-                                <span className="w-0.5 h-0.5 rounded-full bg-zinc-300" />
-                                <span className="text-emerald-600 font-medium">Indexed</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* PDF Viewer Modal */}
             {viewingResource && (
-              <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setViewingResource(null)}>
-                <div className="bg-white rounded-xl w-full max-w-5xl h-[88vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-between px-5 py-3 border-b border-[#eae7e4] shrink-0">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <FileText className="w-4 h-4 text-[#4a7c59] shrink-0" />
-                      <span className="text-sm font-semibold text-zinc-900 truncate">{viewingResource.filename}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <a
-                        href={viewingResource.file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-[#4a7c59] hover:underline font-medium"
-                      >
-                        Open in new tab
-                      </a>
-                      <button
-                        onClick={() => setViewingResource(null)}
-                        className="p-1.5 text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex-1 bg-zinc-100">
-                    <iframe
-                      src={viewingResource.file_url}
-                      className="w-full h-full"
-                      title={viewingResource.filename}
-                    />
-                  </div>
-                </div>
-              </div>
+              <PdfViewerPanel
+                resource={viewingResource}
+                user={user}
+                classroomId={numericId}
+                onClose={() => setViewingResource(null)}
+              />
             )}
           </div>
         )}
@@ -1111,9 +833,93 @@ const ClassroomDetail = () => {
             </div>
           </div>
         )}
+
+        {/* Settings Tab */}
+        {activeTab === 'Settings' && isTeacher && (
+          <ClassroomSettings
+            classroom={classroom}
+            numericId={numericId}
+            onSaved={(data) => {
+              setEntityData(numericId, 'classroom', data)
+            }}
+          />
+        )}
       </div>
 
       {/* AI Modal */}
+      {/* Upload confirmation dialog */}
+      {showUploadDialog && dialogFiles.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowUploadDialog(false)}>
+          <div className="bg-white rounded-xl w-full max-w-lg shadow-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-zinc-100 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-zinc-800">Confirm Upload</h3>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-500">
+                {dialogFiles.length} file{dialogFiles.length > 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="px-5 py-4 space-y-3 max-h-96 overflow-y-auto">
+              <p className="text-xs text-zinc-500 font-medium">Set type for each file:</p>
+              {dialogFiles.map((f, i) => {
+                const type = dialogFileTypes[i] || 'notes'
+                const setType = (t) => {
+                  const next = [...dialogFileTypes]
+                  next[i] = t
+                  setDialogFileTypes(next)
+                }
+                const chip = (t, label, activeColor, color) => (
+                  <button
+                    type="button"
+                    onClick={() => setType(t)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-semibold border cursor-pointer transition-all shrink-0 ${type === t ? activeColor : 'border-zinc-200 text-zinc-400 hover:border-zinc-300'}`}
+                  >
+                    {label}
+                  </button>
+                )
+                return (
+                  <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-zinc-50 border border-zinc-100 group">
+                    <FileText className="w-4 h-4 text-zinc-400 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-zinc-700 truncate">{f.name}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {chip('notes', 'Notes', 'border-blue-400 bg-blue-100 text-blue-700', 'blue')}
+                      {chip('pyq', 'PYQ', 'border-amber-400 bg-amber-100 text-amber-700', 'amber')}
+                      {chip('other', 'Other', 'border-zinc-400 bg-zinc-200 text-zinc-600', 'zinc')}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextFiles = dialogFiles.filter((_, idx) => idx !== i)
+                        const nextTypes = dialogFileTypes.filter((_, idx) => idx !== i)
+                        setDialogFiles(nextFiles)
+                        setDialogFileTypes(nextTypes)
+                      }}
+                      className="p-1 text-zinc-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-zinc-100 bg-zinc-50">
+              <button
+                onClick={() => { setShowUploadDialog(false); setDialogFiles([]); setDialogFileTypes([]) }}
+                className="px-4 py-2 text-xs font-semibold text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-100 cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmUpload}
+                className="px-4 py-2 text-xs font-semibold text-white bg-[#4a7c59] rounded-lg hover:bg-[#35583f] cursor-pointer transition-colors"
+              >
+                Upload {dialogFiles.length} file{dialogFiles.length > 1 ? 's' : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showAIModal && aiMaterial && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="w-full max-w-2xl rounded-2xl border p-6 space-y-4 shadow-xl bg-white border-[#eae7e4] text-[#1c1b1a]">

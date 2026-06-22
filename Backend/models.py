@@ -47,7 +47,12 @@ class Classroom(Base):
     subject = Column(String, nullable=True)
     icon = Column(String, default='sigma')
     banner = Column(String, nullable=True)
+    banner_color = Column(String, nullable=True)
     is_public = Column(Boolean, default=False)
+    resources_enabled = Column(Boolean, default=True)
+    quizzes_enabled = Column(Boolean, default=True)
+    flashcards_enabled = Column(Boolean, default=True)
+    announcements_enabled = Column(Boolean, default=True)
     teacher_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     invite_code = Column(String, unique=True, default=lambda: str(uuid.uuid4())[:6].upper())
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -99,13 +104,19 @@ class Resource(Base):
     filename = Column(String, nullable=False)
     file_path = Column(String, nullable=False)
     file_size = Column(Integer, nullable=True)
+    resource_type = Column(String, default='notes')  # 'notes', 'pyq', 'other'
     indexed = Column(Boolean, default=False)
     indexed_at = Column(DateTime, nullable=True)
+    personal_copy_of = Column(Integer, ForeignKey('resources.id'), nullable=True)
+    owner_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    annotations_data = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     classroom = relationship("Classroom", back_populates="resources")
     folder = relationship("Folder", back_populates="resources")
+    owner = relationship("Users", backref="personal_resources")
+    original = relationship("Resource", remote_side=[id], backref="personal_copies")
 
 class Quiz(Base):
     __tablename__ = 'quizzes'

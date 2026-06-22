@@ -1,9 +1,9 @@
 from typing import List
-from langchain_community.embeddings import SentenceTransformerEmbeddings
+from langchain_ollama import OllamaEmbeddings
 
 
 def get_embedder():
-    return SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+    return OllamaEmbeddings(model="nomic-embed-text-v2-moe")
 
 
 def embed_texts(texts: List[str]) -> List[List[float]]:

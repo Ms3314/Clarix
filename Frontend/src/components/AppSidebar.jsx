@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import {
   LayoutDashboard,
@@ -6,8 +6,8 @@ import {
   ChevronDown,
   BookOpen,
   BookOpenText,
-  GraduationCap,
   Settings,
+  GraduationCap,
 } from "lucide-react"
 import {
   Sidebar,
@@ -21,6 +21,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
 import {
   DropdownMenu,
@@ -30,30 +31,24 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import ProfilePictureAvatar from "@/components/ProfilePictureAvatar"
-import { useAuth } from "@/contexts/AuthContext"
-import api from "@/lib/api"
+import useAuthStore from "@/stores/authStore"
+import useClassroomStore from "@/stores/classroomStore"
 
 export const AppSidebar = ({ ...props }) => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, refreshUser } = useAuth()
-  const [classrooms, setClassrooms] = useState([])
+  const user = useAuthStore((s) => s.user)
+  const logout = useAuthStore((s) => s.logout)
+  const fetchUser = useAuthStore((s) => s.fetchUser)
+  const { classrooms, fetchClassrooms } = useClassroomStore()
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        await refreshUser()
-        const classroomsRes = await api.get("/classrooms/")
-        setClassrooms(classroomsRes.data.classrooms || [])
-      } catch {
-        console.error("Failed to fetch sidebar data")
-      }
-    }
-    fetchData()
+    fetchUser()
+    fetchClassrooms()
   }, [])
 
   const handleLogout = () => {
-    localStorage.removeItem("clarix_token")
+    logout()
     navigate("/")
   }
 
@@ -61,19 +56,25 @@ export const AppSidebar = ({ ...props }) => {
   const isClassroomActive = (id) => location.pathname === `/classroom/${id}`
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-[#e8e4e0]" {...props}>
+    <Sidebar collapsible="offcanvas" className="border-r border-[#e8e4e0]" {...props}>
       <SidebarHeader className="border-b border-[#e8e4e0] pb-3">
         <SidebarMenu>
-          <SidebarMenuItem>
+          <SidebarMenuItem className="flex items-center">
             <SidebarMenuButton size="lg" onClick={() => navigate("/dashboard")} className="hover:bg-[#f0eae3] transition-colors">
               <div className="flex items-center gap-2.5">
                 <img src="/icon.png" className="w-8 h-8 rounded-lg object-contain" />
                 <div className="flex flex-col leading-none">
                   <span className="font-bold text-base text-[17px] tracking-tight">Clarix</span>
-                  {/* <span className="text-[10px] text-[#6b6a68] ">AI Classroom</span> */}
+                  {user?.role === 'teacher' && (
+                    <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 tracking-wider mt-0.5">
+                      <GraduationCap className="w-3 h-3" />
+                      Teacher
+                    </span>
+                  )}
                 </div>
               </div>
             </SidebarMenuButton>
+            <SidebarTrigger className="text-[#acaaa6] hover:text-[#4a4948]" />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

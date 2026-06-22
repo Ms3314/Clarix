@@ -1,15 +1,22 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { CheckCircle, Clock, LogIn, XCircle, Users, Globe, Lock } from 'lucide-react'
+import { CheckCircle, Clock, LogIn, XCircle, Users, Globe, Lock, BookOpen, HelpCircle, Layers, Megaphone, GraduationCap } from 'lucide-react'
 import api from '@/lib/api'
 import { toast } from 'sonner'
+
+const FEATURE_ICONS = {
+  resources_enabled: { icon: BookOpen, label: 'Resources', color: 'text-emerald-600 bg-emerald-50' },
+  quizzes_enabled: { icon: HelpCircle, label: 'Quizzes', color: 'text-teal-600 bg-teal-50' },
+  flashcards_enabled: { icon: Layers, label: 'Flashcards', color: 'text-indigo-600 bg-indigo-50' },
+  announcements_enabled: { icon: Megaphone, label: 'Announcements', color: 'text-amber-600 bg-amber-50' },
+}
 
 export default () => {
   const { code } = useParams()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [classInfo, setClassInfo] = useState(null)
-  const [joinState, setJoinState] = useState(null) // null | 'joining' | 'success' | 'pending' | 'error'
+  const [joinState, setJoinState] = useState(null)
   const [joinMessage, setJoinMessage] = useState('')
   const [token, setToken] = useState(null)
 
@@ -103,11 +110,21 @@ export default () => {
   const showJoinButton = token && joinState !== 'error' && classInfo
   const showLoginButton = !token && joinState !== 'error' && classInfo
 
+  const enabledFeatures = classInfo
+    ? Object.entries(FEATURE_ICONS).filter(([key]) => classInfo[key]).map(([, v]) => v)
+    : []
+
   return (
     <div className="min-h-screen bg-[#faf8f6] flex items-center justify-center p-4 select-none">
-      <div className="w-full max-w-lg bg-white rounded-2xl border border-[#e8e4e0] shadow-sm overflow-hidden">
+      <div className="w-full max-w-xl bg-white rounded-2xl border border-[#e8e4e0] shadow-sm overflow-hidden">
+        {/* Clarix Brand Header */}
+        <div className="px-6 sm:px-8 pt-6 pb-4 flex items-center gap-2.5 border-b border-[#f0ece8]">
+          <img src="/icon.png" className="w-7 h-7 object-contain" />
+          <span className="font-bold text-sm tracking-tight text-[#4a4948]">Clarix</span>
+        </div>
+
         {/* Banner */}
-        <div className="h-36 sm:h-44 relative overflow-hidden bg-zinc-200">
+        <div className="h-40 sm:h-48 relative overflow-hidden bg-zinc-200">
           {classInfo?.banner ? (
             <img
               src={classInfo.banner}
@@ -121,75 +138,149 @@ export default () => {
           ) : (
             <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${fallbackColor}, ${fallbackColor}dd)` }} />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-        </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
 
-        {/* Content */}
-        {classInfo ? (
-          <div className="p-6 sm:p-8">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1 min-w-0">
-                <h1 className="text-2xl font-bold text-zinc-900 leading-tight mb-1">
-                  {classInfo.name}
-                </h1>
-                <p className="text-sm text-zinc-500">
-                  {classInfo.teacher_name || 'Teacher'}
-                </p>
-                {classInfo.subject && (
-                  <p className="text-xs text-zinc-400 mt-1">{classInfo.subject}</p>
-                )}
-              </div>
-              <span className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded ${classInfo.is_public ? 'text-[#4a7c59] bg-[#4a7c59]/10' : 'text-amber-600 bg-amber-50'}`}>
+          {/* Visibility badge on banner */}
+          {classInfo && (
+            <div className="absolute top-3 right-3">
+              <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg backdrop-blur-sm ${
+                classInfo.is_public
+                  ? 'text-white bg-white/20'
+                  : 'text-amber-200 bg-amber-900/30'
+              }`}>
                 {classInfo.is_public ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
                 {classInfo.is_public ? 'Public' : 'Private'}
               </span>
             </div>
+          )}
+        </div>
 
-            {classInfo.description && (
-              <p className="text-sm text-zinc-600 mb-6 leading-relaxed">
-                {classInfo.description}
-              </p>
-            )}
+        {/* Content */}
+        {classInfo ? (
+          <div className="p-6 sm:p-8 space-y-6">
+            {/* Title & Teacher */}
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 leading-tight mb-3">
+                {classInfo.name}
+              </h1>
 
-            <div className="flex items-center gap-2 text-xs text-zinc-400 mb-6">
-              <Users className="w-3.5 h-3.5" />
-              <span>{classInfo.student_count || 0} students enrolled</span>
+              {/* Teacher info */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full overflow-hidden bg-[#f0ece8] flex items-center justify-center shrink-0 border border-[#e8e4e0]">
+                  {classInfo.teacher_profile_picture ? (
+                    <img src={classInfo.teacher_profile_picture} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-sm font-bold text-[#4a7c59]">
+                      {(classInfo.teacher_name || 'T').charAt(0)}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-zinc-800">
+                    {classInfo.teacher_name || 'Teacher'}
+                  </p>
+                  <div className="flex items-center gap-1 text-[11px] text-amber-600 font-semibold">
+                    <GraduationCap className="w-3 h-3" />
+                    <span>Instructor</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Co-teachers */}
+              {classInfo.co_teachers?.length > 0 && (
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[#f0ece8]">
+                  <span className="text-[11px] text-zinc-400 font-medium">Co-teachers:</span>
+                  <div className="flex items-center gap-1.5">
+                    {classInfo.co_teachers.map((ct) => (
+                      <div key={ct.id} className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-zinc-50 border border-zinc-100">
+                        <div className="w-5 h-5 rounded-full bg-[#f0ece8] flex items-center justify-center overflow-hidden">
+                          {ct.profile_picture_url ? (
+                            <img src={ct.profile_picture_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-[9px] font-bold text-zinc-500">{ct.username.charAt(0)}</span>
+                          )}
+                        </div>
+                        <span className="text-[11px] font-medium text-zinc-600">{ct.username}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {joinState === 'joining' ? (
-              <button
-                disabled
-                className="w-full px-6 py-3 text-sm font-semibold rounded-xl bg-zinc-200 text-zinc-400 flex items-center justify-center gap-2"
-              >
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Joining...
-              </button>
-            ) : showJoinButton ? (
-              <button
-                onClick={handleJoin}
-                className="w-full px-6 py-3 text-sm font-semibold rounded-xl bg-[#4a7c59] text-white hover:bg-[#3d6b4c] transition-all cursor-pointer"
-              >
-                Join Class
-              </button>
-            ) : showLoginButton ? (
-              <button
-                onClick={handleLogin}
-                className="w-full px-6 py-3 text-sm font-semibold rounded-xl bg-[#4a7c59] text-white hover:bg-[#3d6b4c] transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                <LogIn className="w-4 h-4" />
-                Sign In to Join
-              </button>
-            ) : joinState === 'error' ? (
-              <button
-                onClick={() => navigate('/')}
-                className="w-full px-6 py-3 text-sm font-semibold rounded-xl bg-zinc-200 text-zinc-600 hover:bg-zinc-300 transition-all cursor-pointer"
-              >
-                Go Home
-              </button>
-            ) : null}
+            {/* Subject + Students row */}
+            <div className="flex flex-wrap items-center gap-3">
+              {classInfo.subject && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200">
+                  <BookOpen className="w-3.5 h-3.5 text-zinc-500" />
+                  {classInfo.subject}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 bg-zinc-50 border border-zinc-100">
+                <Users className="w-3.5 h-3.5" />
+                {classInfo.student_count || 0} {classInfo.student_count === 1 ? 'student' : 'students'}
+              </span>
+            </div>
+
+            {/* Description */}
+            {classInfo.description && (
+              <div className="bg-[#faf8f6] rounded-xl border border-[#f0ece8] p-4">
+                <p className="text-sm text-zinc-600 leading-relaxed">
+                  {classInfo.description}
+                </p>
+              </div>
+            )}
+
+            {/* Feature Flags */}
+            {enabledFeatures.length > 0 && (
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 mb-3">
+                  Classroom Features
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {enabledFeatures.map(({ icon: Icon, label, color }) => (
+                    <span
+                      key={label}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border ${color} border-current/10`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Action Button */}
+            <div className="pt-2">
+              {joinState === 'joining' ? (
+                <button
+                  disabled
+                  className="w-full px-6 py-3 text-sm font-semibold rounded-xl bg-zinc-200 text-zinc-400 flex items-center justify-center gap-2 cursor-not-allowed"
+                >
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Joining...
+                </button>
+              ) : showJoinButton ? (
+                <button
+                  onClick={handleJoin}
+                  className="w-full px-6 py-3 text-sm font-semibold rounded-xl bg-[#4a7c59] text-white hover:bg-[#3d6b4c] transition-all cursor-pointer active:scale-[0.98]"
+                >
+                  Join Class
+                </button>
+              ) : showLoginButton ? (
+                <button
+                  onClick={handleLogin}
+                  className="w-full px-6 py-3 text-sm font-semibold rounded-xl bg-[#4a7c59] text-white hover:bg-[#3d6b4c] transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                  <LogIn className="w-4 h-4" />
+                  Sign In to Join
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : (
           <div className="p-8 text-center">

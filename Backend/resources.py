@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from Backend.auth import get_current_teacher, get_current_user
 from Backend.models import Users, Classroom, Resource, Folder, ChatSession, ChatMessage
 from Backend.Database import get_db
-from Backend.rag_service import index_resource, generate_rag_response, generate_conversation_title
+from Backend.rag_service import index_resource, generate_rag_response, generate_conversation_title, delete_resource_from_vectorstore
 import os
 import tempfile
 import time
@@ -89,6 +89,7 @@ def get_resource_response(resource: Resource):
         "id": resource.id,
         "filename": resource.filename,
         "file_size": resource.file_size,
+        "resource_type": resource.resource_type,
         "indexed": resource.indexed,
         "created_at": resource.created_at,
         "classroom_id": resource.classroom_id,
@@ -118,10 +119,25 @@ def _check_teacher_access(classroom_id: int, teacher_id: int, db: Session):
 @router.get("/{classroom_id}/folders")
 async def list_folders(
     classroom_id: int,
-    teacher: Users = Depends(get_current_teacher),
+    user: Users = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _check_teacher_access(classroom_id, teacher.id, db)
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(status_code=404, detail="Classroom not found")
+
+    if user.role == "teacher" and classroom.teacher_id != user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    elif user.role == "student":
+        from Backend.models import Enrollment
+        enrollment = db.query(Enrollment).filter(
+            Enrollment.user_id == user.id,
+            Enrollment.classroom_id == classroom_id,
+            Enrollment.status == "approved"
+        ).first()
+        if not enrollment:
+            raise HTTPException(status_code=403, detail="Access denied")
+
     folders = db.query(Folder).filter(Folder.classroom_id == classroom_id).all()
     return {"folders": [{"id": f.id, "name": f.name, "parent_id": f.parent_id, "created_at": f.created_at} for f in folders]}
 
@@ -212,11 +228,49 @@ async def move_resources_batch(
     return {"message": "Resources moved"}
 
 
+@router.get("/{classroom_id}/resources/{resource_id}/annotations")
+async def get_annotations(
+    classroom_id: int,
+    resource_id: int,
+    user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    resource = db.query(Resource).filter(Resource.id == resource_id, Resource.classroom_id == classroom_id).first()
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    if not resource.annotations_data:
+        return {"annotations": None}
+    import json
+    return {"annotations": json.loads(resource.annotations_data)}
+
+
+class SaveAnnotationsRequest(BaseModel):
+    annotations: list
+
+
+@router.put("/{classroom_id}/resources/{resource_id}/annotations")
+async def save_annotations(
+    classroom_id: int,
+    resource_id: int,
+    request: SaveAnnotationsRequest,
+    user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    resource = db.query(Resource).filter(Resource.id == resource_id, Resource.classroom_id == classroom_id).first()
+    if not resource:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    import json
+    resource.annotations_data = json.dumps(request.annotations)
+    db.commit()
+    return {"message": "Annotations saved"}
+
+
 @router.post("/{classroom_id}/resources/upload", status_code=status.HTTP_201_CREATED)
 async def upload_resource(
     classroom_id: int,
     file: UploadFile = File(...),
     folder_id: Optional[int] = Form(None),
+    resource_type: str = Form('notes'),
     teacher: Users = Depends(get_current_teacher),
     db: Session = Depends(get_db)
 ):
@@ -248,20 +302,21 @@ async def upload_resource(
         filename=file.filename,
         file_path=full_url,
         file_size=file_size,
+        resource_type=resource_type,
         indexed=False
     )
     db.add(resource)
     db.commit()
     db.refresh(resource)
 
-    # Index the resource
+    # Index the resource (PYQs use QP chunker, notes/other use regular chunker)
     indexed = False
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
             tmp.write(file_bytes)
             tmp_path = tmp.name
 
-        indexed = index_resource(tmp_path, classroom_id, resource.id)
+        indexed = index_resource(tmp_path, classroom_id, resource.id, resource_type)
         os.remove(tmp_path)
     except Exception as e:
         print(f"[Resources] Error indexing resource: {e}")
@@ -596,13 +651,15 @@ async def delete_resource(
     try:
         supabase = get_supabase_client()
         if supabase and resource.file_path:
-            # Extract the storage path from the full public URL
             marker = f"/object/public/{BUCKET_NAME}/"
             if marker in resource.file_path:
                 storage_path = resource.file_path.split(marker)[-1]
                 supabase.storage.from_(BUCKET_NAME).remove([storage_path])
     except Exception as e:
         print(f"[Resources] Failed to delete from Supabase: {e}")
+
+    # Remove from ChromaDB vectorstore
+    delete_resource_from_vectorstore(resource.classroom_id, resource.id)
 
     db.delete(resource)
     db.commit()
