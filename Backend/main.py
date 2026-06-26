@@ -113,6 +113,7 @@ async def get_teacher_resources(
             "created_at": r.created_at.isoformat() if r.created_at else None,
             "classroom_id": r.classroom_id,
             "classroom_name": r.classroom.name if r.classroom else None,
+            "file_url": r.file_path,
         }
         for r in resources
     ]}

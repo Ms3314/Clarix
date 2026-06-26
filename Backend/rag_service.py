@@ -265,58 +265,85 @@ def format_context(results):
 
 
 def generate_rag_response(query: str, classroom_id: int, conversation_history: list | None = None):
+    from langchain_groq import ChatGroq
+    from langchain_core.messages import SystemMessage, HumanMessage
+
     results = query_resources(query, classroom_id)
     if not results:
-        return (
-            "No relevant information found in the classroom resources. "
-            "Please upload some PDF resources to the classroom and wait for them to be indexed."
-        )
+        return {
+            "answer": "No relevant information found in the classroom resources. Please upload some PDF resources to the classroom and wait for them to be indexed.",
+            "citations": [],
+            "related_questions": [],
+        }
+
+    citations = []
+    seen = set()
+    for doc in results:
+        src = doc.metadata.get("source", "Unknown")
+        if src not in seen:
+            seen.add(src)
+            filename = os.path.basename(src) if src != "Unknown" else "Unknown"
+            page = doc.metadata.get("page")
+            citations.append({"source": src, "filename": filename, "page": page})
 
     context = format_context(results)
 
+    system = (
+        "You are a helpful teaching assistant for a classroom. Use the following context "
+        "from the classroom's PDF resources to answer the user's question.\n\n"
+        "Format your responses nicely using:\n"
+        "- Clear headings and subheadings when needed\n"
+        "- Bullet points for lists\n"
+        "- Bold text for important terms or key points\n"
+        "- Numbered lists for sequential steps or rankings\n"
+        "- Short paragraphs for explanations\n\n"
+        "IMPORTANT — Cite your sources:\n"
+        "Use numbered references like [1], [2] etc. inline in the answer where applicable.\n"
+        "At the end, add a '---' separator, then a '**Sources:**' section listing each "
+        "source with its number, filename, and page.\n\n"
+        "Be thorough but concise. If the answer cannot be found in the context, "
+        "clearly state that the information is not available.\n\n"
+        "If asked questions unrelated to the classroom materials (like general knowledge, "
+        "personal questions, etc.), politely say you can only help with classroom-related questions."
+    )
+
+    user_parts = [f"Context:\n{context}\n\nQuestion: {query}"]
+    if conversation_history:
+        history_lines = []
+        for m in conversation_history:
+            role = "User" if m["role"] == "user" else "Assistant"
+            history_lines.append(f"{role}: {m['content']}")
+        user_parts.insert(0, "Previous conversation:\n" + "\n".join(history_lines))
+
+    messages = [SystemMessage(content=system), HumanMessage(content="\n\n".join(user_parts))]
+
     try:
-        from langchain_groq import ChatGroq
-        from langchain_core.prompts import ChatPromptTemplate
-
-        messages = [
-            ("system", """You are a helpful teaching assistant for a classroom. Use the following context from the classroom's PDF resources to answer the user's question.
-
-Format your responses nicely using:
-- Clear headings and subheadings when needed
-- Bullet points for lists
-- Bold text for important terms or key points
-- Numbered lists for sequential steps or rankings
-- Short paragraphs for explanations
-
-Be thorough but concise. If the answer cannot be found in the context provided, clearly state that the information is not available.
-
-If asked questions unrelated to the classroom materials (like general knowledge, personal questions, etc.), politely say you can only help with classroom-related questions.
-
-Context:
-{context}"""),
-        ]
-
-        if conversation_history:
-            for msg in conversation_history:
-                role = "user" if msg["role"] == "user" else "assistant"
-                messages.append((role, msg["content"]))
-
-        messages.append(("user", "{query}"))
-
-        prompt = ChatPromptTemplate.from_messages(messages)
-
-        llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0.7,
-        )
-
-        chain = prompt | llm
-        response = chain.invoke({"context": context, "query": query})
-        return response.content
-
+        llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.7)
+        response = llm.invoke(messages)
+        answer = response.content
     except Exception as e:
         print(f"[RAG] Error generating LLM response: {e}")
-        return f"Here is what I found in the classroom resources:\n{context}"
+        answer = f"Here is what I found in the classroom resources:\n{context}"
+
+    related_questions = []
+    try:
+        related = find_similar_questions(query, classroom_id, k=3)
+        for doc in related:
+            related_questions.append({
+                "question": doc.page_content,
+                "question_number": doc.metadata.get("question_number"),
+                "year": doc.metadata.get("year"),
+                "exam_name": doc.metadata.get("exam_name"),
+                "answer_type": doc.metadata.get("answer_type"),
+            })
+    except Exception as e:
+        print(f"[RAG] Error fetching related PYQs: {e}")
+
+    return {
+        "answer": answer,
+        "citations": citations,
+        "related_questions": related_questions,
+    }
 
 
 def generate_conversation_title(query: str) -> str:

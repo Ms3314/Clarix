@@ -210,6 +210,8 @@ class ChatMessage(Base):
     session_id = Column(Integer, ForeignKey('chat_sessions.id'), nullable=False)
     role = Column(String, nullable=False)  # 'user' or 'assistant'
     content = Column(Text, nullable=False)
+    citations = Column(Text, nullable=True)
+    related_questions = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships

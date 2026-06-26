@@ -121,6 +121,8 @@ const Learn = () => {
         id: "msg-ai-" + Date.now(),
         role: "assistant",
         content: res.data.response,
+        citations: res.data.citations || [],
+        relatedQuestions: res.data.related_questions || [],
         timestamp: new Date().toLocaleTimeString(),
       };
 
@@ -413,13 +415,89 @@ const Learn = () => {
             {msg.content}
           </p>
         ) : (
-          <div className="leading-relaxed">
+          <div className="leading-relaxed w-full">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={markdownComponents}
             >
               {msg.content}
             </ReactMarkdown>
+
+            {msg.citations && msg.citations.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-zinc-200">
+                <p className="text-[11px] font-bold tracking-wider text-zinc-400 uppercase mb-2">
+                  Sources
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {msg.citations.map((c, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-600 text-[11px] font-medium border border-zinc-200"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#4A7C59]" />
+                      {c.filename}
+                      {c.page && <span className="text-zinc-400">p.{c.page}</span>}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {msg.relatedQuestions && msg.relatedQuestions.length > 0 && (
+              <div className="mt-5 pt-4 border-t border-zinc-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-base">📋</span>
+                  <span className="text-[13px] font-bold text-zinc-700">
+                    Related PYQs
+                  </span>
+                  <span className="text-[10px] font-medium text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded-full">
+                    {msg.relatedQuestions.length}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {msg.relatedQuestions.map((q, i) => (
+                    <div
+                      key={i}
+                      className="group rounded-xl border border-zinc-200 bg-white hover:border-amber-300 hover:shadow-sm transition-all duration-200"
+                    >
+                      <div className="px-4 py-3">
+                        <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                          {q.year && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              {q.year}
+                            </span>
+                          )}
+                          {q.answer_type && (
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                                q.answer_type === "short"
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  : "bg-violet-50 text-violet-700 border-violet-200"
+                              }`}
+                            >
+                              {q.answer_type === "short" ? "SAQ" : "LAQ"}
+                            </span>
+                          )}
+                          {q.exam_name && (
+                            <span className="text-[10px] text-zinc-400">
+                              {q.exam_name}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[13px] text-zinc-700 leading-relaxed">
+                          {q.question_number && (
+                            <span className="font-semibold text-zinc-900 mr-1">
+                              Q{q.question_number}.
+                            </span>
+                          )}
+                          {q.question}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -6,6 +6,7 @@ from Backend.auth import get_current_teacher, get_current_user
 from Backend.models import Users, Classroom, Resource, Folder, ChatSession, ChatMessage
 from Backend.Database import get_db
 from Backend.rag_service import index_resource, generate_rag_response, generate_conversation_title, delete_resource_from_vectorstore
+import json
 import os
 import tempfile
 import time
@@ -490,6 +491,8 @@ async def get_session(
                 "id": m.id,
                 "role": m.role,
                 "content": m.content,
+                "citations": json.loads(m.citations) if m.citations else [],
+                "related_questions": json.loads(m.related_questions) if m.related_questions else [],
                 "created_at": m.created_at.isoformat() if m.created_at else None,
             }
             for m in messages
@@ -550,10 +553,20 @@ async def send_message(
     ]
 
     # Call RAG with conversation context
-    response = generate_rag_response(request.query, classroom_id, conversation_history)
+    rag_result = generate_rag_response(request.query, classroom_id, conversation_history)
+
+    answer = rag_result["answer"]
+    citations = rag_result["citations"]
+    related_questions = rag_result["related_questions"]
 
     # Save assistant response
-    assistant_msg = ChatMessage(session_id=session_id, role="assistant", content=response)
+    assistant_msg = ChatMessage(
+        session_id=session_id,
+        role="assistant",
+        content=answer,
+        citations=json.dumps(citations) if citations else None,
+        related_questions=json.dumps(related_questions) if related_questions else None,
+    )
     db.add(assistant_msg)
     db.commit()
     db.refresh(assistant_msg)
@@ -561,17 +574,19 @@ async def send_message(
     db.refresh(session)
 
     return {
-        "response": response,
+        "response": answer,
         "message": {
             "id": assistant_msg.id,
             "role": "assistant",
-            "content": response,
+            "content": answer,
             "created_at": assistant_msg.created_at.isoformat() if assistant_msg.created_at else None,
         },
         "session": {
             "id": session.id,
             "title": session.title or "New Conversation",
-        }
+        },
+        "citations": citations,
+        "related_questions": related_questions,
     }
 
 

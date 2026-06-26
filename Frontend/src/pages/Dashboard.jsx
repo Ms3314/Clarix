@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { useSidebar } from '@/components/ui/sidebar'
 import { Loading } from '@/components/ui/loading'
 import ProfilePictureAvatar from '@/components/ProfilePictureAvatar'
+import PdfViewerPanel from '@/components/classroom/PdfViewerPanel'
 import useAuthStore from '@/stores/authStore'
 import useClassroomStore from '@/stores/classroomStore'
 
@@ -26,6 +27,7 @@ const Dashboard = () => {
   const [resources, setResources] = useState([])
   const [resourcesLoading, setResourcesLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [viewingResource, setViewingResource] = useState(null)
   const navigate = useNavigate()
   const { setOpenMobile } = useSidebar()
 
@@ -305,7 +307,8 @@ const Dashboard = () => {
                 {resources.map((doc) => (
                   <div
                     key={doc.id}
-                    className="flex items-center gap-3 p-3 border bg-white border-[#eae6e1] hover:border-zinc-300 transition-colors"
+                    onClick={() => setViewingResource(doc)}
+                    className="flex items-center gap-3 p-3 border bg-white border-[#eae6e1] hover:border-zinc-300 transition-colors cursor-pointer"
                   >
                     <div className="p-2 border bg-[#faf7f3] border-[#eae6e1] shrink-0">
                       <FileText className="w-3.5 h-3.5 text-zinc-600" />
@@ -337,6 +340,14 @@ const Dashboard = () => {
         )}
       </div>
 
+      {viewingResource && (
+        <PdfViewerPanel
+          resource={viewingResource}
+          user={user}
+          classroomId={viewingResource.classroom_id}
+          onClose={() => setViewingResource(null)}
+        />
+      )}
     </div>
   )
 }

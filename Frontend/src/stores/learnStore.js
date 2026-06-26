@@ -32,6 +32,8 @@ const useLearnStore = create((set, get) => ({
         id: m.id,
         role: m.role,
         content: m.content,
+        citations: m.citations || [],
+        relatedQuestions: m.related_questions || [],
         timestamp: m.created_at ? new Date(m.created_at).toLocaleTimeString() : '',
       }))
       set({ messagesBySession: { ...get().messagesBySession, [sessionId]: msgs } })
