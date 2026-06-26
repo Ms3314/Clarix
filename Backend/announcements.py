@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Annotated
-from Backend.auth import get_current_teacher, get_current_user
-from Backend.models import Users, Classroom, Enrollment, Announcement
-from Backend.Database import get_db
+from auth import get_current_teacher, get_current_user
+from models import Users, Classroom, Enrollment, Announcement
+from Database import get_db
 from pydantic import BaseModel
 from datetime import datetime
 

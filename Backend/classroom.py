@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import Annotated, List
-from Backend.auth import get_current_teacher, get_current_student, get_current_user
-from Backend.models import Users, Classroom, Enrollment, ClassroomTeacher
-from Backend.Database import SessionLocal
+from auth import get_current_teacher, get_current_student, get_current_user
+from models import Users, Classroom, Enrollment, ClassroomTeacher
+from Database import SessionLocal
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 import os
 import time
-from Backend.Database import get_db
+from Database import get_db
 
 BUCKET_NAME = "classroom-resources"
 

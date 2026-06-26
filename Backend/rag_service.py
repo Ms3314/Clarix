@@ -14,8 +14,8 @@ def get_embeddings():
 
 
 def _resolve_invite_code(classroom_id: int) -> str:
-    from Backend.Database import SessionLocal
-    from Backend.models import Classroom
+    from Database import SessionLocal
+    from models import Classroom
     db = SessionLocal()
     try:
         classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
@@ -43,8 +43,8 @@ def get_vectorstore(classroom_id: int):
 
 def index_resource(file_path: str, classroom_id: int, resource_id: int, resource_type: str = 'notes') -> bool:
     try:
-        from Backend.rag_pipeline.indexing.detector import is_handwritten
-        from Backend.rag_pipeline.indexing.extractors import extract_text
+        from rag_pipeline.indexing.detector import is_handwritten
+        from rag_pipeline.indexing.extractors import extract_text
 
         print(f"[RAG] Detecting document type for: {file_path} (type: {resource_type})")
         hw = is_handwritten(file_path)
@@ -58,7 +58,7 @@ def index_resource(file_path: str, classroom_id: int, resource_id: int, resource
         print(f"[RAG] Extracted {len(pages)} pages")
 
         if resource_type == 'pyq':
-            from Backend.rag_pipeline.indexing.qp_chunker import smart_chunk_question_paper
+            from rag_pipeline.indexing.qp_chunker import smart_chunk_question_paper
             extra_meta = {
                 "classroom_id": classroom_id,
                 "resource_id": resource_id,
@@ -66,7 +66,7 @@ def index_resource(file_path: str, classroom_id: int, resource_id: int, resource
             }
             documents = smart_chunk_question_paper(pages, extra_metadata=extra_meta)
         else:
-            from Backend.rag_pipeline.indexing.chunker import create_langchain_documents
+            from rag_pipeline.indexing.chunker import create_langchain_documents
             documents = create_langchain_documents(pages)
             chunk_type = 'note' if resource_type == 'notes' else resource_type
             for doc in documents:
@@ -117,9 +117,9 @@ def index_resource_from_url(url: str, classroom_id: int, resource_id: int, resou
 
 def index_question_paper(file_path: str, classroom_id: int, resource_id: int) -> bool:
     try:
-        from Backend.rag_pipeline.indexing.detector import is_handwritten
-        from Backend.rag_pipeline.indexing.extractors import extract_text
-        from Backend.rag_pipeline.indexing.qp_chunker import smart_chunk_question_paper
+        from rag_pipeline.indexing.detector import is_handwritten
+        from rag_pipeline.indexing.extractors import extract_text
+        from rag_pipeline.indexing.qp_chunker import smart_chunk_question_paper
 
         print(f"[RAG] Processing question paper: {file_path}")
         hw = is_handwritten(file_path)

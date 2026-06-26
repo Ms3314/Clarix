@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import Annotated
 from pydantic import BaseModel
-from Backend.auth import get_current_user
-from Backend.models import Users
-from Backend.Database import get_db
+from auth import get_current_user
+from models import Users
+from Database import get_db
 from datetime import datetime
 import os
 from dotenv import load_dotenv

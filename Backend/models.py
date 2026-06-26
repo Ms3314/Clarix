@@ -1,4 +1,4 @@
-from Backend.Database import Base
+from Database import Base
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -215,3 +215,37 @@ class ChatMessage(Base):
 
     # Relationships
     session = relationship("ChatSession", back_populates="messages")
+
+
+class GroupChatMessage(Base):
+    __tablename__ = 'group_chat_messages'
+
+    id = Column(Integer, primary_key=True, index=True)
+    classroom_id = Column(Integer, ForeignKey('classrooms.id'), nullable=False)
+    sender_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    message = Column(Text, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    is_pinned = Column(Boolean, default=False)
+    is_deleted = Column(Boolean, default=False)
+    deleted_by = Column(Integer, ForeignKey('users.id'), nullable=True)
+    deleted_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    classroom = relationship("Classroom")
+    sender = relationship("Users", foreign_keys=[sender_id])
+    deleted_by_user = relationship("Users", foreign_keys=[deleted_by])
+
+
+class PinnedGroupChatMessage(Base):
+    __tablename__ = 'pinned_group_chat_messages'
+
+    id = Column(Integer, primary_key=True, index=True)
+    classroom_id = Column(Integer, ForeignKey('classrooms.id'), nullable=False)
+    message_id = Column(Integer, ForeignKey('group_chat_messages.id'), nullable=False)
+    pinned_by = Column(Integer, ForeignKey('users.id'), nullable=False)
+    pinned_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    classroom = relationship("Classroom")
+    message = relationship("GroupChatMessage")
+    pinned_by_user = relationship("Users")

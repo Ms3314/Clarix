@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Annotated, List
-from Backend.auth import get_current_teacher, get_current_student, get_current_user
-from Backend.models import Users, Classroom, Quiz, QuizQuestion, QuizAttempt, Enrollment
-from Backend.Database import SessionLocal
+from auth import get_current_teacher, get_current_student, get_current_user
+from models import Users, Classroom, Quiz, QuizQuestion, QuizAttempt, Enrollment
+from Database import SessionLocal
 from pydantic import BaseModel
 from datetime import datetime
 import json

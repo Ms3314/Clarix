@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 from typing import Annotated, Optional
 from pydantic import BaseModel
-from Backend.auth import get_current_teacher, get_current_user
-from Backend.models import Users, Classroom, Resource, Folder, ChatSession, ChatMessage
-from Backend.Database import get_db
-from Backend.rag_service import index_resource, generate_rag_response, generate_conversation_title, delete_resource_from_vectorstore
+from auth import get_current_teacher, get_current_user
+from models import Users, Classroom, Resource, Folder, ChatSession, ChatMessage
+from Database import get_db
+from rag_service import index_resource, generate_rag_response, generate_conversation_title, delete_resource_from_vectorstore
 import os
 import tempfile
 import time

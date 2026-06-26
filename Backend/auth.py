@@ -3,10 +3,10 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
-from Backend import models
+import models
 from starlette import status as starlette_status
-from Backend.Database import SessionLocal
-from Backend.models import Users
+from Database import SessionLocal
+from models import Users
 import bcrypt
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import jwt, JWTError

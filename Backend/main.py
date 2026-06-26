@@ -2,21 +2,22 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, status, De
 from fastapi.responses import RedirectResponse, JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from pathlib import Path
-from Backend import models, auth
+import sys
+sys.path.insert(0, str(Path(__file__).parent))
+import models, auth
+from Database import engine, SessionLocal
 
 from dotenv import load_dotenv
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
-from Backend.Database import engine, SessionLocal
 from typing import Annotated
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from Backend.models import Users, Resource, Classroom
-from Backend.auth import get_current_teacher, get_current_user
-from Backend.Database import get_db
+from models import Users, Resource, Classroom
+from auth import get_current_teacher, get_current_user
+from Database import get_db
 import os
 import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 app = FastAPI(title="Clarix API", version="1.0.0")
 
@@ -36,12 +37,13 @@ class CORSMiddleware(BaseHTTPMiddleware):
 app.add_middleware(CORSMiddleware)
 
 # Import and include routers
-from Backend.classroom import router as classroom_router
-from Backend.resources import router as resources_router
-from Backend.quiz import router as quiz_router
-from Backend.flashcard import router as flashcard_router
-from Backend.announcements import router as announcements_router
-from Backend.profile import router as profile_router
+from classroom import router as classroom_router
+from resources import router as resources_router
+from quiz import router as quiz_router
+from flashcard import router as flashcard_router
+from announcements import router as announcements_router
+from profile import router as profile_router
+from chat import router as chat_router
 
 app.include_router(auth.router)
 app.include_router(classroom_router)
@@ -50,6 +52,7 @@ app.include_router(quiz_router)
 app.include_router(flashcard_router)
 app.include_router(announcements_router)
 app.include_router(profile_router)
+app.include_router(chat_router)
 
 # Connection Manager with ROOM support (kept for potential WebSocket features)
 class ConnectionManager:

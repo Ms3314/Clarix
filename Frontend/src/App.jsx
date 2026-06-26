@@ -12,6 +12,7 @@ import Learn from "./pages/Learn";
 import JoinPage from "./pages/JoinPage";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
+import Chat from "./pages/chat.jsx";
 import AppLayout from "./layouts/AppLayout";
 
 const queryClient = new QueryClient();
@@ -53,6 +54,7 @@ const App = () => (
         <Route path="/" element={<GuestRoute><Index /></GuestRoute>} />
         <Route path="/join/:code" element={<JoinPage />} />
         <Route path="/learn" element={<ProtectedRoute><Learn /></ProtectedRoute>} />
+        <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
         <Route element={<ProtectedLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/classroom/new" element={<CreateClassroom />} />
