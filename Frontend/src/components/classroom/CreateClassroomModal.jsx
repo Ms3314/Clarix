@@ -1,11 +1,9 @@
 import React, { useState } from "react";
-import { X, Sigma, FlaskConical, Scroll, Shuffle } from "lucide-react";
+import { X, Shuffle } from "lucide-react";
 
 export default ({ onClose, onSave }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [icon, setIcon] = useState("sigma");
-
   const generateCode = (prefix) => {
     const p = prefix.slice(0, 3).toUpperCase().padEnd(3, "X");
     const rNum = Math.floor(100 + Math.random() * 899);
@@ -21,7 +19,7 @@ export default ({ onClose, onSave }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSave({ name, description, invite_code: inviteCode, icon });
+    onSave({ name, description, invite_code: inviteCode });
   };
 
   return (
@@ -95,31 +93,6 @@ export default ({ onClose, onSave }) => {
               >
                 <Shuffle className="w-4 h-4" />
               </button>
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-2xs  uppercase tracking-wider text-zinc-400 block">
-              Subject Emblem
-            </label>
-            <div className="flex items-center gap-3">
-              {["sigma", "flask", "scroll"].map((iconOpt) => (
-                <button
-                  key={iconOpt}
-                  type="button"
-                  onClick={() => setIcon(iconOpt)}
-                  className={`flex-1 flex items-center justify-center p-3 rounded-xl border cursor-pointer transition-all ${
-                    icon === iconOpt
-                      ? "bg-green-100/20 border-[#4a7c59] text-[#4a7c59] font-bold"
-                      : "bg-zinc-50 border-zinc-200 text-zinc-500 hover:bg-white"
-                  }`}
-                >
-                  {iconOpt === "sigma" && <Sigma className="w-4 h-4" />}
-                  {iconOpt === "flask" && <FlaskConical className="w-4 h-4" />}
-                  {iconOpt === "scroll" && <Scroll className="w-4 h-4" />}
-                  <span className="text-2xs  uppercase ml-1.5 leading-none">{iconOpt}</span>
-                </button>
-              ))}
             </div>
           </div>
 

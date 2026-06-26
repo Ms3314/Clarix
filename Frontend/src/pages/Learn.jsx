@@ -10,6 +10,7 @@ import api from "@/lib/api";
 import { toast } from "sonner";
 import useClassroomStore from "@/stores/classroomStore";
 import useLearnStore from "@/stores/learnStore";
+import { Loading } from "@/components/ui/loading";
 
 const Learn = () => {
   const navigate = useNavigate();
@@ -234,9 +235,7 @@ const Learn = () => {
                 Select a classroom to start
               </div>
             ) : sessionsLoading ? (
-              <div className="text-center py-6 text-xs text-zinc-400">
-                Loading...
-              </div>
+              <Loading size="sm" className="py-6" />
             ) : sessions.length === 0 ? (
               <div className="text-center py-6 text-xs text-zinc-400">
                 No conversations yet

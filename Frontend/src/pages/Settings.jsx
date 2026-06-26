@@ -4,6 +4,7 @@ import { Camera, Trash2, LogOut, Check, X } from "lucide-react"
 import { toast } from "sonner"
 import api from "@/lib/api"
 import { Button } from "@/components/ui/button"
+import { Loading } from "@/components/ui/loading"
 import useAuthStore from "@/stores/authStore"
 
 export default function SettingsPage() {
@@ -130,10 +131,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4a7c59] mx-auto mb-4"></div>
-          <p className="text-[#6b6a68]">Loading settings...</p>
-        </div>
+        <Loading size="lg" text="Loading settings..." />
       </div>
     )
   }

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import {
-  Save, Upload, Shuffle, Globe, Lock, Sigma, FlaskConical, ScrollText,
+  Save, Upload, Shuffle, Globe, Lock,
   BookOpen, HelpCircle, Layers, Megaphone,
 } from 'lucide-react'
 import api from '@/lib/api'
@@ -13,12 +13,6 @@ const BANNERS = [
   'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800&h=200&fit=crop',
   'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&h=200&fit=crop',
   'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&h=200&fit=crop',
-]
-
-const ICONS = [
-  { value: 'sigma', label: 'Sigma', icon: Sigma },
-  { value: 'flask', label: 'Flask', icon: FlaskConical },
-  { value: 'scroll', label: 'Scroll', icon: ScrollText },
 ]
 
 const FEATURES = [
@@ -34,7 +28,6 @@ export default function ClassroomSettings({ classroom, numericId, onSaved }) {
   const [name, setName] = useState(classroom?.name || '')
   const [subject, setSubject] = useState(classroom?.subject || '')
   const [description, setDescription] = useState(classroom?.description || '')
-  const [icon, setIcon] = useState(classroom?.icon || 'sigma')
   const [banner, setBanner] = useState(classroom?.banner || '')
   const [bannerFile, setBannerFile] = useState(null)
   const [bannerPreview, setBannerPreview] = useState(null)
@@ -51,7 +44,6 @@ export default function ClassroomSettings({ classroom, numericId, onSaved }) {
       setName(classroom.name || '')
       setSubject(classroom.subject || '')
       setDescription(classroom.description || '')
-      setIcon(classroom.icon || 'sigma')
       setBanner(classroom.banner || '')
       setIsPublic(classroom.is_public ?? true)
       setFeatures({
@@ -113,7 +105,6 @@ export default function ClassroomSettings({ classroom, numericId, onSaved }) {
         name: name.trim(),
         subject: subject.trim(),
         description: description.trim(),
-        icon,
         banner: bannerUrl,
         is_public: isPublic,
         ...features,
@@ -260,38 +251,6 @@ export default function ClassroomSettings({ classroom, numericId, onSaved }) {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Icon */}
-          <div className="bg-white rounded-xl border border-[#e8e4e0] shadow-sm">
-            <div className="px-6 py-4 border-b border-[#e8e4e0]">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-600">Icon</h3>
-            </div>
-            <div className="p-6 space-y-3">
-              {ICONS.map((ic) => {
-                const Icon = ic.icon
-                const selected = icon === ic.value
-                return (
-                  <button
-                    key={ic.value}
-                    type="button"
-                    onClick={() => setIcon(ic.value)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                      selected
-                        ? 'border-[#4a7c59] bg-[#4a7c59]/5 ring-1 ring-[#4a7c59]/30'
-                        : 'border-[#d4d0cc] bg-white hover:border-zinc-300'
-                    }`}
-                  >
-                    <div className={`p-2 rounded-lg ${selected ? 'bg-[#4a7c59]/10 text-[#4a7c59]' : 'bg-zinc-100 text-zinc-500'}`}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <span className={`text-sm font-semibold ${selected ? 'text-[#4a7c59]' : 'text-zinc-700'}`}>
-                      {ic.label}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
           {/* Visibility */}
           <div className="bg-white rounded-xl border border-[#e8e4e0] shadow-sm">
             <div className="px-6 py-4 border-b border-[#e8e4e0]">

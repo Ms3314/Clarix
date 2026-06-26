@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Check, LogIn, FileText, Link, MoreVertical, GraduationCap } from 'lucide-react'
+import { Plus, Check, LogIn, FileText, Link, MoreVertical, GraduationCap, RefreshCw } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -10,6 +10,7 @@ import {
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import { useSidebar } from '@/components/ui/sidebar'
+import { Loading } from '@/components/ui/loading'
 import ProfilePictureAvatar from '@/components/ProfilePictureAvatar'
 import useAuthStore from '@/stores/authStore'
 import useClassroomStore from '@/stores/classroomStore'
@@ -24,6 +25,7 @@ const Dashboard = () => {
   const [joining, setJoining] = useState(false)
   const [resources, setResources] = useState([])
   const [resourcesLoading, setResourcesLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const navigate = useNavigate()
   const { setOpenMobile } = useSidebar()
 
@@ -83,6 +85,13 @@ const Dashboard = () => {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    invalidateClassrooms()
+    await Promise.all([fetchClassrooms(true), user?.role === 'teacher' ? fetchTeacherResources() : Promise.resolve()])
+    setRefreshing(false)
+  }
+
   const handleSelect = (cls) => {
     navigate(`/classroom/${cls.id}`)
     setOpenMobile(false)
@@ -90,8 +99,8 @@ const Dashboard = () => {
 
   if (pageLoading) {
     return (
-      <div className="flex items-center justify-center p-12 min-h-[60vh]">
-        <div className="text-lg text-zinc-400">Loading...</div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loading size="lg" />
       </div>
     )
   }
@@ -106,6 +115,14 @@ const Dashboard = () => {
               {getGreeting()}, {user?.username || 'there'}
             </h1>
           </div>
+
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center justify-center w-8 h-8 rounded border border-[#e0dcd6] text-zinc-400 hover:bg-zinc-50 hover:border-zinc-400 hover:text-zinc-600 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
 
           {user?.role === 'teacher' && (
             <DropdownMenu>
@@ -278,7 +295,7 @@ const Dashboard = () => {
             </div>
 
             {resourcesLoading ? (
-              <div className="text-sm text-zinc-400">Loading...</div>
+              <Loading size="sm" className="py-8" />
             ) : resources.length === 0 ? (
               <div className="text-sm text-zinc-400 py-8 text-center border border-dashed border-[#eae6e1]">
                 No documents uploaded yet. Upload PDFs in any classroom to see them here.

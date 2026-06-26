@@ -52,7 +52,6 @@ class ClassroomCreate(BaseModel):
     name: str
     description: str = ""
     subject: str = ""
-    icon: str = "sigma"
     banner: str = ""
     banner_color: str = ""
     is_public: bool = False
@@ -81,7 +80,6 @@ class ClassroomUpdate(BaseModel):
     name: str
     description: str = ""
     subject: str = ""
-    icon: str = "sigma"
     banner: str = ""
     banner_color: str = ""
     is_public: bool = False
@@ -129,7 +127,6 @@ async def create_classroom(
         name=classroom_data.name,
         description=classroom_data.description,
         subject=classroom_data.subject,
-        icon=classroom_data.icon,
         banner=classroom_data.banner or None,
         banner_color=classroom_data.banner_color or None,
         is_public=classroom_data.is_public,
@@ -164,7 +161,6 @@ async def create_classroom(
             "name": new_classroom.name,
             "description": new_classroom.description,
             "subject": new_classroom.subject,
-            "icon": new_classroom.icon,
             "banner": new_classroom.banner,
             "banner_color": new_classroom.banner_color,
             "is_public": new_classroom.is_public,
@@ -199,7 +195,6 @@ async def list_classrooms(
                 "name": c.name,
                 "description": c.description,
                 "subject": c.subject,
-                "icon": c.icon,
                 "banner": c.banner,
                 "banner_color": c.banner_color,
                 "is_public": c.is_public,
@@ -295,7 +290,6 @@ async def get_classroom(
         "name": classroom.name,
         "description": classroom.description,
         "subject": classroom.subject,
-        "icon": classroom.icon,
         "banner": classroom.banner,
         "is_public": classroom.is_public,
         "resources_enabled": classroom.resources_enabled,
@@ -325,7 +319,6 @@ async def update_classroom(
     classroom.name = request.name
     classroom.description = request.description
     classroom.subject = request.subject
-    classroom.icon = request.icon
     classroom.banner = request.banner or None
     classroom.banner_color = request.banner_color or None
     classroom.is_public = request.is_public
@@ -350,7 +343,6 @@ async def update_classroom(
         "name": classroom.name,
         "description": classroom.description,
         "subject": classroom.subject,
-        "icon": classroom.icon,
         "banner": classroom.banner,
         "is_public": classroom.is_public,
         "resources_enabled": classroom.resources_enabled,

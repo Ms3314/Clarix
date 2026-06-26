@@ -19,6 +19,7 @@ import { toast } from 'sonner'
 import useAuthStore from '@/stores/authStore'
 import useClassroomDetailStore from '@/stores/classroomDetailStore'
 import useUploadStore from '@/stores/uploadStore'
+import { Loading } from '@/components/ui/loading'
 
 const ClassroomDetail = () => {
   const { id } = useParams()
@@ -26,14 +27,32 @@ const ClassroomDetail = () => {
   const numericId = Number(id)
 
   const user = useAuthStore((s) => s.user)
-  const fetchUser = useAuthStore((s) => s.fetchUser)
   const {
-    getEntityData, fetchAll, fetchPending: fetchPendingStore,
-    invalidateEntity, setEntityData,
+    getEntityData, getEntityLoading, invalidateEntity, setEntityData,
+    fetchClassroom: fetchClassroomStore, fetchPending: fetchPendingStore,
     fetchStudents: fetchStudentsStore, fetchResources: fetchResourcesStore,
     fetchAnnouncements: fetchAnnouncementsStore,
     fetchFolders: fetchFoldersStore,
   } = useClassroomDetailStore()
+
+  const entityFetchers = {
+    classroom: fetchClassroomStore,
+    students: fetchStudentsStore,
+    resources: fetchResourcesStore,
+    quizzes: fetchQuizzesStore,
+    announcements: fetchAnnouncementsStore,
+    folders: fetchFoldersStore,
+    pending: fetchPendingStore,
+  }
+
+  const TAB_ENTITIES = {
+    Overview: ['classroom', 'students', 'resources', 'quizzes'],
+    Announcements: ['announcements'],
+    Resources: ['resources', 'folders'],
+    Quizzes: ['quizzes'],
+    Students: ['students', 'pending'],
+    Settings: [],
+  }
 
   const classroom = getEntityData(numericId, 'classroom')
   const students = getEntityData(numericId, 'students') || []
@@ -43,7 +62,7 @@ const ClassroomDetail = () => {
   const folders = getEntityData(numericId, 'folders') || []
   const pendingStudents = getEntityData(numericId, 'pending') || []
 
-  const [pageLoading, setPageLoading] = useState(true)
+  const classroomLoading = getEntityLoading(numericId, 'classroom')
   const [activeTab, setActiveTab] = useState('Overview')
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
@@ -61,28 +80,18 @@ const ClassroomDetail = () => {
   const [showAIModal, setShowAIModal] = useState(false)
   const [selectedFolderId, setSelectedFolderId] = useState(null)
   const [viewingResource, setViewingResource] = useState(null)
+  const [deletingItem, setDeletingItem] = useState(null)
+  const [deletingLoading, setDeletingLoading] = useState(false)
   const uploadActive = useUploadStore((s) => s.queue.some((q) => q.status === 'pending' || q.status === 'uploading'))
 
   useEffect(() => {
-    const fetchAllData = async () => {
-      setPageLoading(true)
-      try {
-        await Promise.all([fetchUser(), fetchAll(numericId)])
-      } catch (error) {
+    const entities = TAB_ENTITIES[activeTab] || []
+    Promise.all(entities.map(e => entityFetchers[e](numericId)))
+      .catch((error) => {
         toast.error('Failed to load classroom')
         if (error.response?.status === 401) navigate('/')
-      } finally {
-        setPageLoading(false)
-      }
-    }
-    fetchAllData()
-  }, [numericId])
-
-  useEffect(() => {
-    if (activeTab === 'Students' && user?.role === 'teacher') {
-      fetchPendingStore(numericId, true)
-    }
-  }, [activeTab, numericId, user?.role])
+      })
+  }, [numericId, activeTab])
 
   const saveEditedName = async (e) => {
     e.preventDefault()
@@ -221,16 +230,6 @@ const ClassroomDetail = () => {
     }
   }
 
-  const handleDeleteFolder = async (folderId) => {
-    try {
-      await api.delete(`/classrooms/${numericId}/folders/${folderId}`)
-      invalidateEntity(numericId, 'folders')
-      fetchFoldersStore(numericId, true)
-      if (selectedFolderId === folderId) setSelectedFolderId(null)
-      toast.success('Folder deleted')
-    } catch { toast.error('Failed to delete folder') }
-  }
-
   const handleMoveResource = async (resourceId, folderId) => {
     try {
       await api.put(`/classrooms/${numericId}/resources/${resourceId}/move`, { folder_id: folderId })
@@ -248,6 +247,57 @@ const ClassroomDetail = () => {
       fetchResourcesStore(numericId, true)
     } catch {
       toast.error('Failed to delete')
+    }
+  }
+
+  const handleDeleteFolder = async (folderId) => {
+    try {
+      await api.delete(`/classrooms/${numericId}/folders/${folderId}`)
+      invalidateEntity(numericId, 'folders')
+      fetchFoldersStore(numericId, true)
+      if (selectedFolderId === folderId) setSelectedFolderId(null)
+      toast.success('Folder deleted')
+    } catch { toast.error('Failed to delete folder') }
+  }
+
+  const requestDelete = (type, id) => {
+    const name = type === 'resource'
+      ? resources.find(r => r.id === id)?.filename
+      : folders.find(f => f.id === id)?.name
+    setDeletingItem({ type, id, name: name || 'this item' })
+  }
+
+  const confirmDelete = async () => {
+    if (!deletingItem) return
+    setDeletingLoading(true)
+    if (deletingItem.type === 'resource') {
+      await handleDeleteResource(deletingItem.id)
+    } else {
+      await handleDeleteFolder(deletingItem.id)
+    }
+    setDeletingLoading(false)
+    setDeletingItem(null)
+  }
+
+  const handleCreateQuiz = async (e) => {
+    e.preventDefault()
+    if (!quizTitle.trim()) return
+    setQuizCreating(true)
+    try {
+      await api.post(`/classrooms/${numericId}/quizzes`, {
+        title: quizTitle,
+        description: `${quizQuestions} questions`,
+        questions: [],
+        is_ai_generated: false,
+      })
+      toast.success('Quiz created!')
+      setQuizTitle('')
+      invalidateEntity(numericId, 'quizzes')
+      fetchQuizzesStore(numericId, true)
+    } catch (err) {
+      toast.error('Failed to create quiz')
+    } finally {
+      setQuizCreating(false)
     }
   }
 
@@ -280,10 +330,10 @@ const ClassroomDetail = () => {
     setShowAIModal(false)
   }
 
-  if (pageLoading) {
+  if (!classroom && classroomLoading) {
     return (
-      <div className="flex items-center justify-center p-12 min-h-[60vh]">
-        <div className="text-lg text-zinc-400">Loading classroom...</div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loading size="lg" />
       </div>
     )
   }
@@ -724,8 +774,8 @@ const ClassroomDetail = () => {
               selectedFolderId={selectedFolderId}
               onSelectFolder={setSelectedFolderId}
               onOpenFile={setViewingResource}
-              onDeleteResource={handleDeleteResource}
-              onDeleteFolder={handleDeleteFolder}
+              onDeleteResource={(id) => requestDelete('resource', id)}
+              onDeleteFolder={(id) => requestDelete('folder', id)}
               onCreateFolder={handleCreateFolder}
               onMoveResource={handleMoveResource}
               onUploadFiles={handleFileSelected}
@@ -868,6 +918,50 @@ const ClassroomDetail = () => {
                 className="py-2 px-4 rounded-xl text-xs font-semibold text-white cursor-pointer transition-all bg-[#4a7c59] hover:bg-[#35583f]"
               >
                 Save to Resources
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletingItem && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-md shadow-xl overflow-hidden">
+            <div className="px-5 py-6 flex flex-col items-center text-center gap-3">
+              <div className={`p-3 rounded-full ${deletingLoading ? 'bg-zinc-100' : 'bg-red-50'}`}>
+                {deletingLoading ? (
+                  <div className="w-5 h-5 border-2 border-zinc-300 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-5 h-5 text-red-500" />
+                )}
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-zinc-800">
+                  {deletingLoading ? 'Deleting...' : `Delete ${deletingItem.type}`}
+                </h3>
+                <p className="text-xs text-zinc-500 mt-1">
+                  {deletingLoading
+                    ? 'Please wait while this item is being deleted.'
+                    : `Are you sure you want to delete "${deletingItem.name}"? This action cannot be undone.`
+                  }
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 py-3 bg-zinc-50">
+              {!deletingLoading && (
+                <button
+                  onClick={() => setDeletingItem(null)}
+                  className="px-4 py-2 text-xs font-semibold text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-100 cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                onClick={confirmDelete}
+                disabled={deletingLoading}
+                className="px-4 py-2 text-xs font-semibold text-white rounded-lg cursor-pointer transition-colors flex items-center gap-2 disabled:cursor-not-allowed bg-red-500 hover:bg-red-600 disabled:bg-zinc-300"
+              >
+                {deletingLoading ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>

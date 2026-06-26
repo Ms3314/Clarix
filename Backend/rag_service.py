@@ -12,6 +12,9 @@ def get_embeddings():
     from langchain_huggingface import HuggingFaceEmbeddings
     return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
+def get_embeddings_openAI():
+    from langchain_openai import OpenAIEmbeddings
+    return OpenAIEmbeddings(model="text-embedding-3-small")
 
 def _resolve_invite_code(classroom_id: int) -> str:
     from Backend.Database import SessionLocal
@@ -56,7 +59,7 @@ def index_resource(file_path: str, classroom_id: int, resource_id: int, resource
             return False
 
         print(f"[RAG] Extracted {len(pages)} pages")
-
+        print("the pages are the following " , pages)
         if resource_type == 'pyq':
             from Backend.rag_pipeline.indexing.qp_chunker import smart_chunk_question_paper
             extra_meta = {
@@ -64,6 +67,7 @@ def index_resource(file_path: str, classroom_id: int, resource_id: int, resource
                 "resource_id": resource_id,
                 "source": file_path,
             }
+            # this is the different chunker for the question papper we have over here
             documents = smart_chunk_question_paper(pages, extra_metadata=extra_meta)
         else:
             from Backend.rag_pipeline.indexing.chunker import create_langchain_documents

@@ -1,9 +1,12 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import api from '@/lib/api'
 
 const STALE_MS = 5 * 60 * 1000
 
-const useClassroomDetailStore = create((set, get) => ({
+const useClassroomDetailStore = create(
+  persist(
+    (set, get) => ({
   _data: {},
   _meta: {},
   _fetching: {},
@@ -96,6 +99,15 @@ const useClassroomDetailStore = create((set, get) => ({
 
     await Promise.all(toFetch.map(e => get()._ensureEntity(id, e, fetchers[e], force)))
   },
-}))
+    }),
+    {
+      name: 'clarix-classroom-detail',
+      partialize: (state) => ({
+        _data: state._data,
+        _meta: state._meta,
+      }),
+    }
+  )
+)
 
 export default useClassroomDetailStore
