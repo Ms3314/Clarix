@@ -3,10 +3,11 @@ from sqlalchemy.orm import Session
 from typing import Annotated, List
 from Backend.auth import get_current_teacher, get_current_student, get_current_user
 from Backend.models import Users, Classroom, Quiz, QuizQuestion, QuizAttempt, Enrollment
-from Backend.Database import SessionLocal
+from Backend.Database import SessionLocal, get_db
 from pydantic import BaseModel
 from datetime import datetime
 import json
+from Backend.quiz_ai import generate_quiz
 
 router = APIRouter(
     prefix="/classrooms",
@@ -43,12 +44,19 @@ class QuizResponse(BaseModel):
     created_at: datetime
     question_count: int
 
+class GenerateQuizRequest(BaseModel):
+    title: str
+    topic: str
+    difficulty: str = "medium"
+    num_questions: int = 5
+
+
 @router.post("/{classroom_id}/quizzes", status_code=status.HTTP_201_CREATED)
 async def create_quiz(
     classroom_id: int,
     quiz_data: QuizCreate,
     teacher: Users = Depends(get_current_teacher),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
     classroom = db.query(Classroom).filter(
         Classroom.id == classroom_id,
@@ -90,7 +98,7 @@ async def create_quiz(
 async def list_quizzes(
     classroom_id: int,
     user: Users = Depends(get_current_user),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
     classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
     if not classroom:
@@ -127,7 +135,7 @@ async def get_quiz(
     classroom_id: int,
     quiz_id: int,
     user: Users = Depends(get_current_user),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
     quiz = db.query(Quiz).filter(
         Quiz.id == quiz_id,
@@ -174,7 +182,7 @@ async def attempt_quiz(
     quiz_id: int,
     attempt_data: QuizAttemptRequest,
     student: Users = Depends(get_current_student),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
     quiz = db.query(Quiz).filter(
         Quiz.id == quiz_id,
@@ -190,6 +198,11 @@ async def attempt_quiz(
     ).first()
     if not enrollment:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enrolled in this classroom")
+    
+    existing_attempt = db.query(QuizAttempt).filter(QuizAttempt.quiz_id == quiz_id,QuizAttempt.student_id == student.id).first()
+
+    if existing_attempt:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="You have already attempted this quiz")
 
     questions = db.query(QuizQuestion).filter(QuizQuestion.quiz_id == quiz_id).order_by(QuizQuestion.order).all()
     total_questions = len(questions)
@@ -223,7 +236,7 @@ async def get_quiz_attempts(
     classroom_id: int,
     quiz_id: int,
     teacher: Users = Depends(get_current_teacher),
-    db: Session = Depends(SessionLocal)
+    db: Session = Depends(get_db)
 ):
     classroom = db.query(Classroom).filter(
         Classroom.id == classroom_id,
@@ -246,3 +259,205 @@ async def get_quiz_attempts(
             } for a in attempts
         ]
     }
+
+
+@router.get("/{classroom_id}/quizzes/{quiz_id}/leaderboard")
+async def get_quiz_leaderboard(
+    classroom_id: int,
+    quiz_id: int,
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    quiz = db.query(Quiz).filter(
+        Quiz.id == quiz_id,
+        Quiz.classroom_id == classroom_id
+    ).first()
+
+    if not quiz:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz not found")
+    
+    attempts = db.query(QuizAttempt).filter(QuizAttempt.quiz_id == quiz_id).order_by(QuizAttempt.score.desc()).all()
+    leaderboard = []
+    for rank, attempt in enumerate(attempts, start=1):
+        student = db.query(Users).filter(Users.id == attempt.student_id).first()
+
+        leaderboard.append({
+            "rank": rank,
+            "student_id": attempt.student_id,
+            "student_name": student.username,
+            "score": attempt.score,
+            "attempted_at": attempt.attempted_at
+        })
+    return {"quiz_id": quiz_id, "quiz_title": quiz.title, "leaderboard": leaderboard}
+
+
+
+@router.post("/{classroom_id}/quizzes/generate")
+async def generate_ai_quiz(
+    classroom_id: int,
+    data: GenerateQuizRequest,
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(
+        Classroom.id == classroom_id,
+        Classroom.teacher_id == teacher.id
+    ).first()
+
+    if not classroom:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Classroom not found"
+        )
+
+    questions = generate_quiz(
+        topic=data.topic,
+        difficulty=data.difficulty,
+        num_questions=data.num_questions
+    )
+
+    quiz = Quiz(
+        classroom_id=classroom_id,
+        title=data.title,
+        description=f"AI Generated Quiz on {data.topic}",
+        created_by=teacher.id,
+        is_ai_generated=True
+    )
+
+    db.add(quiz)
+    db.commit()
+    db.refresh(quiz)
+
+    for index, q in enumerate(questions):
+
+        question = QuizQuestion(
+            quiz_id=quiz.id,
+            question=q["question"],
+            options=json.dumps(q["options"]),
+            correct_answer=q["correct_answer"],
+            order=index + 1
+        )
+
+        db.add(question)
+
+    db.commit()
+
+    return {
+        "message": "AI Quiz created successfully",
+        "quiz_id": quiz.id,
+        "question_count": len(questions)
+    }
+
+@router.put("/{classroom_id}/quizzes/{quiz_id}")
+async def update_quiz(
+    classroom_id: int,
+    quiz_id: int,
+    quiz_data: QuizUpdate,
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(
+        Classroom.id == classroom_id,
+        Classroom.teacher_id == teacher.id
+    ).first()
+
+    if not classroom:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Classroom not found"
+        )
+
+    quiz = db.query(Quiz).filter(
+        Quiz.id == quiz_id,
+        Quiz.classroom_id == classroom_id
+    ).first()
+
+    if not quiz:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Quiz not found"
+        )
+
+    # Update title
+    if quiz_data.title is not None:
+        quiz.title = quiz_data.title
+
+    # Update description
+    if quiz_data.description is not None:
+        quiz.description = quiz_data.description
+
+    # Update questions
+    if quiz_data.questions is not None:
+
+        # Delete existing questions
+        db.query(QuizQuestion).filter(
+            QuizQuestion.quiz_id == quiz_id
+        ).delete()
+
+        # Add new questions
+        for q_data in quiz_data.questions:
+            question = QuizQuestion(
+                quiz_id=quiz.id,
+                question=q_data.question,
+                options=json.dumps(q_data.options),
+                correct_answer=q_data.correct_answer,
+                order=q_data.order
+            )
+
+            db.add(question)
+
+    db.commit()
+
+    return {
+        "message": "Quiz updated successfully",
+        "quiz_id": quiz.id
+    }
+
+@router.delete("/{classroom_id}/quizzes/{quiz_id}")
+async def delete_quiz(
+    classroom_id: int,
+    quiz_id: int,
+    teacher: Users = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    classroom = db.query(Classroom).filter(
+        Classroom.id == classroom_id,
+        Classroom.teacher_id == teacher.id
+    ).first()
+
+    if not classroom:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Classroom not found"
+        )
+
+    quiz = db.query(Quiz).filter(
+        Quiz.id == quiz_id,
+        Quiz.classroom_id == classroom_id
+    ).first()
+
+    if not quiz:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Quiz not found"
+        )
+
+    # Delete quiz questions
+    db.query(QuizQuestion).filter(
+        QuizQuestion.quiz_id == quiz_id
+    ).delete()
+
+    # Delete quiz attempts
+    db.query(QuizAttempt).filter(
+        QuizAttempt.quiz_id == quiz_id
+    ).delete()
+
+    # Delete quiz
+    db.delete(quiz)
+
+    db.commit()
+
+    return {
+        "message": "Quiz deleted successfully"
+    }
+

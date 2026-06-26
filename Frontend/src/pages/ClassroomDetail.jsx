@@ -13,6 +13,7 @@ import {
 import ResourceBrowser from '@/components/classroom/ResourceBrowser'
 import PdfViewerPanel from '@/components/classroom/PdfViewerPanel'
 import ClassroomSettings from '@/components/classroom/ClassroomSettings'
+import QuizTab from '@/components/classroom/QuizTab'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 import useAuthStore from '@/stores/authStore'
@@ -30,7 +31,7 @@ const ClassroomDetail = () => {
     getEntityData, fetchAll, fetchPending: fetchPendingStore,
     invalidateEntity, setEntityData,
     fetchStudents: fetchStudentsStore, fetchResources: fetchResourcesStore,
-    fetchQuizzes: fetchQuizzesStore, fetchAnnouncements: fetchAnnouncementsStore,
+    fetchAnnouncements: fetchAnnouncementsStore,
     fetchFolders: fetchFoldersStore,
   } = useClassroomDetailStore()
 
@@ -55,9 +56,6 @@ const ClassroomDetail = () => {
   const [dialogFiles, setDialogFiles] = useState([])
   const [dialogFileTypes, setDialogFileTypes] = useState([])
   const [actionLoading, setActionLoading] = useState(null)
-  const [quizTitle, setQuizTitle] = useState('')
-  const [quizQuestions, setQuizQuestions] = useState(5)
-  const [quizCreating, setQuizCreating] = useState(false)
   const [generatingAI, setGeneratingAI] = useState(false)
   const [aiMaterial, setAiMaterial] = useState(null)
   const [showAIModal, setShowAIModal] = useState(false)
@@ -250,28 +248,6 @@ const ClassroomDetail = () => {
       fetchResourcesStore(numericId, true)
     } catch {
       toast.error('Failed to delete')
-    }
-  }
-
-  const handleCreateQuiz = async (e) => {
-    e.preventDefault()
-    if (!quizTitle.trim()) return
-    setQuizCreating(true)
-    try {
-      await api.post(`/classrooms/${numericId}/quizzes`, {
-        title: quizTitle,
-        description: `${quizQuestions} questions`,
-        questions: [],
-        is_ai_generated: false,
-      })
-      toast.success('Quiz created!')
-      setQuizTitle('')
-      invalidateEntity(numericId, 'quizzes')
-      fetchQuizzesStore(numericId, true)
-    } catch (err) {
-      toast.error('Failed to create quiz')
-    } finally {
-      setQuizCreating(false)
     }
   }
 
@@ -769,69 +745,7 @@ const ClassroomDetail = () => {
 
         {/* Quizzes Tab */}
         {activeTab === 'Quizzes' && (
-          <div className="space-y-6 animate-fade-in max-w-4xl">
-            {isTeacher && (
-              <form
-                onSubmit={handleCreateQuiz}
-                className="border rounded-xl p-5 grid grid-cols-1 sm:grid-cols-4 gap-4 items-end bg-white border-[#eae7e4]"
-              >
-                <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-2xs  text-zinc-400 block">Quiz Title</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 rounded-lg border text-xs focus:outline-none bg-[#fdfaf7] border-[#d4d2d0]"
-                    placeholder="e.g. Chapter 4 review"
-                    value={quizTitle}
-                    onChange={(e) => setQuizTitle(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-2xs  text-zinc-400 block">Questions</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={50}
-                    className="w-full px-3 py-2 rounded-lg border text-xs focus:outline-none bg-[#fdfaf7] border-[#d4d2d0]"
-                    value={quizQuestions}
-                    onChange={(e) => setQuizQuestions(Number(e.target.value))}
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={quizCreating || !quizTitle.trim()}
-                  className="w-full py-2 px-4 text-xs font-semibold rounded-lg text-white cursor-pointer transition-colors bg-[#4a7c59] hover:bg-[#32533c] disabled:bg-zinc-200"
-                >
-                  {quizCreating ? 'Creating...' : 'Add Quiz'}
-                </button>
-              </form>
-            )}
-
-            <div className="space-y-4">
-              {quizzes.length === 0 ? (
-                <p className="text-sm text-zinc-400  text-center py-6">No quizzes created yet.</p>
-              ) : (
-                quizzes.map((quiz) => (
-                  <div
-                    key={quiz.id}
-                    className="border rounded-xl p-5 flex items-center justify-between bg-white border-[#eae7e4]"
-                  >
-                    <div>
-                      <h5 className="font-bold text-sm tracking-tight text-zinc-900">{quiz.title}</h5>
-                      <div className="flex items-center gap-2 mt-1 text-3xs  text-zinc-400">
-                        <span>{quiz.question_count || 0} Questions</span>
-                        <span>•</span>
-                        <span>{quiz.created_at ? new Date(quiz.created_at).toLocaleDateString() : ''}</span>
-                      </div>
-                    </div>
-                    <span className="px-2.5 py-0.5 rounded-full text-2xs  font-bold border bg-teal-50 border-teal-200 text-teal-600">
-                      {quiz.is_ai_generated ? 'AI Generated' : 'Published'}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+          <QuizTab classroomId={numericId} isTeacher={isTeacher} />
         )}
 
         {/* Settings Tab */}
