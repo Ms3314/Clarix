@@ -19,3 +19,12 @@ build/
 .claude
 chroma_db/
 uploads/
+
+# OS junk
+.DS_Store
+
+# Evals: local vector indexes and copyrighted source text (rebuild with evals/build_corpus.py)
+evals/.index/
+evals/corpus/*.pdf
+evals/corpus/pages.json
+evals/corpus/chapters/
