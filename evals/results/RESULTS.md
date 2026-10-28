@@ -1,7 +1,8 @@
 # Retrieval results
 
-Golden set `goldens_v1`, **dev split only** (75 goldens, 69 answerable). The test split has not
-been run. Date: 2026-10-27. k = number of chunks returned; production passes the top 4 to the LLM.
+**Status: final.** Golden set `goldens_v1`, **dev split only** (75 goldens, 69 answerable). The test split
+was deliberately not run (cost), so every number here is a dev number and the chosen configuration
+was selected on the same questions; treat it as tuned, not held-out. Dates: 2026-10-27/28. k = number of chunks returned; production passes the top 4 to the LLM.
 
 With 69 answerable questions one question is about 1.5 points, so differences under about 0.08
 are within noise.
@@ -17,6 +18,24 @@ are within noise.
 | hybrid (dense + BM25, RRF) | 0.25 | 0.62 | 0.78 | 0.40 | 0.42 | 0.15 | 0.74 | 0.32 | 0.32 s |
 | **Combined**: openai-large, 1000/100, clean, dense | 0.39 | **0.77** | 0.83 | **0.59** | 0.53 | 0.20 | 0.85 | 0.34 | 0.49 s |
 | Combined + hybrid | 0.38 | 0.74 | **0.90** | 0.56 | 0.53 | 0.18 | 0.87 | 0.31 | 0.50 s |
+
+## LLM-judged retrieval (DeepEval, judge `gpt-6-luna`, dev split, 69 answerable)
+
+| Run | Contextual Recall | Contextual Precision | Contextual Relevancy |
+|---|---|---|---|
+| Judge check: gold evidence passed directly (ceiling) | 0.89 | 1.00 | 0.97 |
+| Production-like: nomic, 500/50, top 4 | 0.55 | 0.81 | 0.73 |
+| **Best setup**: openai-large, 1000/100, header/footer stripping, top 5 | **0.71** | **0.88** | 0.72 |
+
+Judge cost about $0.37 in total. Per-question reasons are in `judged_dev_*.json`.
+
+- Recall tops out at 0.89 even with perfect evidence: worked-problem and false-premise reference
+  answers contain calculations and corrections the quoted text does not state. Read recall as a share
+  of that ceiling (production-like about 62%, best setup about 80%).
+- Cross-chapter recall: 0.27 production-like, 0.59 best setup. Worked-problem recall stays low (0.53).
+- Relevancy did not improve: 1000-char chunks carry more off-topic text per chunk (code questions 0.42).
+- The two judged setups differ in four ways at once (embedding, chunk size, stripping, k); the
+  one-factor table above isolates the effects.
 
 ## Findings
 
@@ -36,8 +55,9 @@ are within noise.
 6. Weakest question types: definition and compare questions, and cross-chapter questions, where the
    retriever usually finds only one of the two chapters.
 
-## Next
+## Not done
 
-- DeepEval judged metrics (ContextualRecall / Precision / Relevancy) on the best configuration.
+- Held-out test split (75 goldens) not run. Judged scores for hybrid, BM25 and the single-factor
+  variants were not run; only the quote-match metrics exist for those.
 - Port the winning configuration into `backend/rag_service.py` (header stripping, chunk size,
-  embedding model) and re-index; then run the test split once.
+  embedding model) and re-index.
