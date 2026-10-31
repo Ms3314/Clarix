@@ -1,43 +1,53 @@
-Clarix
-Where teachers teach, and AI amplifies.
+# Clarix
 
-Clarix is an AI-powered classroom platform designed to transform how teachers deliver knowledge and how students interact with course materials. It bridges traditional education with modern AI to create an interactive and intelligent learning ecosystem.
+**Where teachers teach, and AI amplifies.**
 
-Teachers can upload their entire course content — including syllabi, textbooks, lecture notes, past year questions, and custom resources. These materials are processed and indexed into a vector-based knowledge system, enabling AI to deeply understand the course. This allows students to interact with an AI that actually understands their specific syllabus and learning material, not just generic information.
+Clarix is an AI classroom platform. Teachers upload their course material (textbooks, notes, past
+papers) into a classroom; it is indexed into a per-classroom vector store, and students get an AI
+tutor that answers from *that* material instead of generic knowledge.
 
-Features
-For Teachers
+## Features
 
-Upload and organize course materials
+| Area | Status |
+|---|---|
+| Teacher and student roles, auth, profiles | Working |
+| Classrooms: create, invite code, public/private join with approval, co-teachers | Working |
+| Resources: PDF upload, folders, PDF viewer, annotations; indexed for the tutor | Working |
+| RAG tutor: per-student chat sessions over the classroom's resources | Working (no citations yet) |
+| Quizzes: manual and AI-generated, attempts, leaderboard | Working |
+| Announcements | Working |
+| Flashcards | Backend only |
+| Group/peer chat, podcast-style lessons | Planned |
 
-Build an AI-powered knowledge base from teaching resources
+## Stack
 
-Generate quizzes and study tools from uploaded content
+- **Frontend**: React 19, Vite, Tailwind CSS 4, Zustand, React Router (`frontend/`)
+- **Backend**: FastAPI, SQLAlchemy (Postgres/Supabase), JWT auth (`backend/`)
+- **RAG**: PyMuPDF and Tesseract extraction, LangChain, Chroma Cloud, Ollama for chat and embeddings
+- **Evals**: offline retrieval and generation evals on a textbook test set (`evals/`)
 
-Extend classroom learning beyond lectures
+## Repository layout
 
-For Students
+```
+backend/    FastAPI app, models, routers, RAG service and indexing pipeline
+frontend/   React app
+evals/      RAG evaluation harness, golden test set and results
+context/    project documentation; start at context/README.md
+AGENTS.md   instructions for AI coding agents working in this repo
+```
 
-Chat with an AI that understands their actual course syllabus
+## Running locally
 
-Practice with AI-generated quizzes
+Requires Python 3.13, Node 20+, Tesseract and poppler (for PDF OCR), and Ollama with the chat and
+embedding models pulled. Copy `backend/example.env` to `backend/.env` and fill it in.
 
-Reinforce concepts through smart flashcards
+```bash
+# backend (from the repo root)
+pip install -r backend/requirements.txt
+uvicorn backend.main:app --reload        # http://localhost:8000
 
-Learn through podcast-style audio lessons
+# frontend
+cd frontend && npm install && npm run dev  # http://localhost:5173
+```
 
-Collaboration
-
-Clarix also focuses on making learning social and collaborative:
-
-Group discussions for shared learning
-
-One-on-one peer conversations for deeper engagement
-
-Vision
-
-Clarix is not designed to replace teachers — it is built to multiply their impact. Every lecture, note, and question created by a teacher becomes part of a dynamic AI learning system that helps students learn smarter, faster, and more interactively.
-
-By turning static course materials into an intelligent learning experience, Clarix helps bridge the gap between traditional classrooms and AI-powered education.
-
-Clarix — Learn smarter. Together.
+More detail: `context/setup-and-ops.md`. Evals: `evals/README.md`.
