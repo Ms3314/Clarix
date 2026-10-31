@@ -11,7 +11,7 @@ extractor and chunker from `backend/rag_pipeline/indexing/` but indexes into a l
 |---|---|
 | Golden set (OSTEP textbook) | Done: 150 frozen goldens, 75 dev / 75 test, plus 64 reserve |
 | Retrieval eval, deterministic (Hit/Recall/Precision@k, MRR) | Done on dev; 7 one-factor experiments + combined |
-| Retrieval eval, DeepEval judged (Contextual Recall/Precision/Relevancy) | Next |
+| Retrieval eval, DeepEval judged (Contextual Recall/Precision/Relevancy) | Done on dev (judge gpt-6-luna, ~$0.37); declared final, held-out test split not run |
 | Generator eval (faithfulness, answer relevance, refusal on unanswerable) | Planned |
 | Full RAG triad | Planned |
 | Conversational metrics (multi-turn) and "when to retrieve vs not" | Deferred, to revisit after generator evals |
@@ -32,7 +32,8 @@ extractor and chunker from `backend/rag_pipeline/indexing/` but indexes into a l
 ## Headline so far (dev split)
 
 Production-like retrieval (500-char chunks, nomic or openai-small, top 5) finds the right passage
-for about 55% of questions. openai-large + 1000-char chunks + header/footer stripping reaches 77%.
+for about 55% of questions. openai-large + 1000-char chunks + header/footer stripping reaches 77%
+(judged recall 0.55 -> 0.71 against a 0.89 judge ceiling).
 See `evals/results/RESULTS.md`.
 
 ## Code facts the evals depend on

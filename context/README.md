@@ -1,41 +1,46 @@
-# Clarix — Context Index
+# Clarix - Context Index
 
-Living snapshot of the codebase so a new contributor (human or agent) can get oriented fast.
-Written 2026-10-26 from a full read of `Backend/`, `Frontend/src/`, and the root docs on branch `main`
-(HEAD `51f9eda`, with uncommitted Groq → Ollama changes in the working tree).
+Last verified against code: 2026-10-27
 
-**Trust order when sources disagree:** the code > this folder > `AGENTS.md` / `Backend/README.md` / `Frontend/DESIGN.md` / the `PROFILE_*.md` files (those are partly stale — see [status-and-gotchas.md](status-and-gotchas.md)).
+Clarix is an AI-assisted classroom platform. Teachers create classrooms, upload PDFs (notes, past-year question papers) and build quizzes;
+students join by invite code, chat with an AI tutor that answers from the classroom's indexed PDFs (RAG), and take quizzes. Flashcards exist in the backend only.
+Stack: FastAPI + SQLAlchemy (`backend/`, :8000), React 19 + Vite + Tailwind v4 + Zustand (`frontend/`, :5173), Supabase Storage, Chroma Cloud, local Ollama.
 
-## What Clarix is
+**Trust order when sources disagree:** the code > this folder > `AGENTS.md` > `archive/` (historical, not maintained).
 
-An AI-assisted classroom platform. Teachers create classrooms, upload PDFs (notes, past-year question papers),
-and build quizzes. Students join by invite code, chat with an AI tutor that answers from the classroom's
-indexed PDFs (RAG), and take quizzes. Flashcards exist in the backend only.
+## Read this first
+
+1. [architecture.md](architecture.md) - components, repo layout, key flows.
+2. [setup-and-ops.md](setup-and-ops.md) - get it running (env vars, Ollama, Tesseract, run commands).
+3. [backend.md](backend.md) or [frontend.md](frontend.md) - whichever side you are changing.
+4. [data-model.md](data-model.md) and [rag-pipeline.md](rag-pipeline.md) - when touching tables or the tutor.
+5. [status-and-gotchas.md](status-and-gotchas.md) - before trusting any feature or deploying.
 
 ## Files in this folder
 
-| File | Read it when you need… |
+| File | Purpose |
 | --- | --- |
-| [architecture.md](architecture.md) | The big picture: components, request flow, external services, repo layout |
+| [architecture.md](architecture.md) | Big picture: components, request flow, external services, repo layout, conventions |
 | [backend.md](backend.md) | Every router/module and its endpoints, auth and access rules |
-| [data-model.md](data-model.md) | SQLAlchemy tables, relationships, startup "migrations" |
-| [rag-pipeline.md](rag-pipeline.md) | How PDFs are indexed and how the tutor answers; the two parallel RAG code paths |
-| [frontend.md](frontend.md) | Routes, pages, Zustand stores, API usage, dead code |
-| [setup-and-ops.md](setup-and-ops.md) | Env vars, how to run, external dependencies (Ollama, Chroma Cloud, Supabase, Tesseract) |
-| [status-and-gotchas.md](status-and-gotchas.md) | What's done / half-done, bugs, security issues, doc drift, the evals plan |
+| [frontend.md](frontend.md) | Routes, pages, Zustand stores, API usage, styling, dead code |
+| [data-model.md](data-model.md) | SQLAlchemy tables, relationships/cascades, startup "migrations", DB engine notes |
+| [rag-pipeline.md](rag-pipeline.md) | How PDFs are indexed and how the tutor answers; the unused LangGraph library path |
+| [setup-and-ops.md](setup-and-ops.md) | Env vars, run commands, external dependencies, requirements notes |
+| [status-and-gotchas.md](status-and-gotchas.md) | Feature status, verified bugs, security notes, stale docs, next steps |
+| [evals.md](evals.md) | RAG evaluation harness in `evals/` (retrieval metrics, goldens, results) |
+| [archive/](archive/README.md) | Historical docs (profile-picture feature set, old READMEs, original evals plan); outdated in places |
 
 ## 60-second summary
 
-- **Stack:** FastAPI + SQLAlchemy (backend, port 8000) · React 19 + Vite 8 + Tailwind v4 + Zustand (frontend, port 5173).
-- **Auth:** JWT (HS256, 20 min) via bcrypt login; sent as `clarix_token` cookie *and* `Authorization: Bearer`. Roles: `teacher`, `student`.
-- **Storage:** relational DB via `DATABASE_URL`; PDFs and images in Supabase Storage (public buckets); vectors in **Chroma Cloud**.
-- **AI:** all local via **Ollama** — chat/quiz model `qwen3.5:latest` (env `OLLAMA_MODEL`), embeddings `nomic-embed-text-v2-moe`.
-- **PDF ingestion:** PyMuPDF text extraction, Tesseract OCR for handwritten/scanned; question papers get a regex/LLM question-level chunker.
-- **Tests:** none in the repo.
-- **Run (from repo root):** `uvicorn Backend.main:app --reload` and `cd Frontend && npm run dev` — see [setup-and-ops.md](setup-and-ops.md) for why the backend command differs from `AGENTS.md`.
+- **Auth:** JWT (HS256, 20 min) via bcrypt login; sent as `clarix_token` cookie *and* `Authorization: Bearer`. Roles: `teacher`, `student` (self-selected at signup).
+- **Storage:** relational DB via `DATABASE_URL` (SQLite locally, Postgres/Supabase intended); PDFs and images in Supabase Storage (public buckets); vectors in **Chroma Cloud** (one collection per classroom).
+- **AI:** all local via **Ollama** - chat/quiz model `qwen3.5:latest` (env `OLLAMA_MODEL`), embeddings `nomic-embed-text-v2-moe`.
+- **PDF ingestion:** PyMuPDF text extraction, Tesseract OCR for handwritten/scanned; question papers get a regex/LLM question-level chunker. Runs synchronously in the upload request.
+- **Run (from repo root):** `uvicorn backend.main:app --reload` and `cd frontend && npm run dev`.
+- **Tests:** none for the app; RAG evals in `evals/`.
 
-## Keeping this folder current
+## How to keep this folder current
 
-Update the relevant file in the same change whenever you add a router/endpoint, a table/column, an env var,
-a frontend route/store, or change the RAG path. Date-stamp big changes at the bottom of
-[status-and-gotchas.md](status-and-gotchas.md).
+Update the relevant file in the same change whenever you add a router/endpoint, a table/column, an env var, a frontend route/store, or change the RAG path or access rules.
+Verify claims against the code (not against other docs), fix the bug list in [status-and-gotchas.md](status-and-gotchas.md) when you fix or introduce a bug, then bump the "Last verified against code" date above and add a line to the changelog at the bottom of `status-and-gotchas.md`.
+Do not edit `archive/`; add a new current doc instead and note which archived file it supersedes in `archive/README.md`.
