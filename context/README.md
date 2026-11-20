@@ -27,6 +27,7 @@ Stack: FastAPI + SQLAlchemy (`backend/`, :8000), React 19 + Vite + Tailwind v4 +
 | [rag-pipeline.md](rag-pipeline.md) | How PDFs are indexed and how the tutor answers; the unused LangGraph library path |
 | [setup-and-ops.md](setup-and-ops.md) | Env vars, run commands, external dependencies, requirements notes |
 | [status-and-gotchas.md](status-and-gotchas.md) | Feature status, verified bugs, security notes, stale docs, next steps |
+| [deploy.md](deploy.md) | Docker Compose + Caddy deploy on a small VM (Oracle), hosted LLM/embeddings, step-by-step guide |
 | [evals.md](evals.md) | RAG evaluation harness in `evals/` (retrieval metrics, goldens, results) |
 | [archive/](archive/README.md) | Historical docs (profile-picture feature set, old READMEs, original evals plan); outdated in places |
 
@@ -34,7 +35,7 @@ Stack: FastAPI + SQLAlchemy (`backend/`, :8000), React 19 + Vite + Tailwind v4 +
 
 - **Auth:** JWT (HS256, 20 min) via bcrypt login; sent as `clarix_token` cookie *and* `Authorization: Bearer`. Roles: `teacher`, `student` (self-selected at signup).
 - **Storage:** relational DB via `DATABASE_URL` (SQLite locally, Postgres/Supabase intended); PDFs and images in Supabase Storage (public buckets); vectors in **Chroma Cloud** (one collection per classroom).
-- **AI:** all local via **Ollama** - chat/quiz model `qwen3.5:latest` (env `OLLAMA_MODEL`), embeddings `nomic-embed-text-v2-moe`.
+- **AI:** provider chosen by env in `backend/llm.py`. Default is local **Ollama** (chat/quiz `qwen3.5:latest`, embeddings `nomic-embed-text-v2-moe`); the deploy uses `LLM_PROVIDER=openai` (OpenRouter) and `EMBEDDING_PROVIDER=openai` (`text-embedding-3-small`).
 - **PDF ingestion:** PyMuPDF text extraction, Tesseract OCR for handwritten/scanned; question papers get a regex/LLM question-level chunker. Runs synchronously in the upload request.
 - **Run (from repo root):** `uvicorn backend.main:app --reload` and `cd frontend && npm run dev`.
 - **Tests:** none for the app; RAG evals in `evals/`.

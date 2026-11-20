@@ -3,7 +3,7 @@ import json
 from typing import Optional
 from langchain_core.documents import Document
 import os
-from langchain_ollama import ChatOllama
+from backend.llm import get_chat_llm
 from langchain_core.prompts import ChatPromptTemplate
 
 
@@ -162,7 +162,7 @@ def chunk_question_paper_llm(
         ("user", "Question paper text:\n\n{text}"),
     ])
 
-    llm = ChatOllama(model=ollama_model or os.getenv("OLLAMA_MODEL", "qwen3.5:latest"), temperature=0.0)
+    llm = get_chat_llm(temperature=0.0, model=ollama_model)
     chain = prompt | llm
 
     try:

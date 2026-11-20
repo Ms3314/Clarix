@@ -9,8 +9,8 @@ load_dotenv(dotenv_path=env_path)
 
 
 def get_embeddings():
-    from langchain_ollama import OllamaEmbeddings
-    return OllamaEmbeddings(model="nomic-embed-text-v2-moe:latest")
+    from backend.llm import get_embeddings as _get_embeddings
+    return _get_embeddings()
 
 
 def _resolve_invite_code(classroom_id: int) -> str:
@@ -271,7 +271,7 @@ def generate_rag_response(query: str, classroom_id: int, conversation_history: l
     context = format_context(results)
 
     try:
-        from langchain_ollama import ChatOllama
+        from backend.llm import get_chat_llm
         from langchain_core.prompts import ChatPromptTemplate
 
         messages = [
@@ -301,10 +301,7 @@ Context:
 
         prompt = ChatPromptTemplate.from_messages(messages)
 
-        llm = ChatOllama(
-            model=os.getenv("OLLAMA_MODEL", "qwen3.5:latest"),
-            temperature=0.7,
-        )
+        llm = get_chat_llm(temperature=0.7)
 
         chain = prompt | llm
         response = chain.invoke({"context": context, "query": query})
@@ -317,7 +314,7 @@ Context:
 
 def generate_conversation_title(query: str) -> str:
     try:
-        from langchain_ollama import ChatOllama
+        from backend.llm import get_chat_llm
         from langchain_core.prompts import ChatPromptTemplate
 
         prompt = ChatPromptTemplate.from_messages([
@@ -325,10 +322,7 @@ def generate_conversation_title(query: str) -> str:
             ("user", "{query}")
         ])
 
-        llm = ChatOllama(
-            model=os.getenv("OLLAMA_MODEL", "qwen3.5:latest"),
-            temperature=0.3,
-        )
+        llm = get_chat_llm(temperature=0.3)
 
         chain = prompt | llm
         response = chain.invoke({"query": query})

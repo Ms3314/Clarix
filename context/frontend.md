@@ -46,7 +46,7 @@ Guards only check that `localStorage['clarix_token']` exists; real validation ha
 
 ## API layer
 
-`src/lib/api.js`: axios instance, `baseURL: 'http://localhost:8000'` (**hardcoded, no env var**), `withCredentials: true`, Bearer header from localStorage, 401 -> clear token + redirect to `/`.
+`src/lib/api.js`: axios instance, `baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000'`, `withCredentials: true`, Bearer header from localStorage, 401 -> clear token + redirect to `/`.
 Backend endpoints with **no frontend caller**: all `/flashcards`, `DELETE /classrooms/{id}`, `DELETE .../students/{sid}`, `PUT .../folders/{fid}` (rename), `PUT .../resources/{rid}` (rename), `PUT .../resources/move-batch`, `GET .../chat/history`, `GET /profile/{user_id}/picture`, and the `/ws/...` WebSocket.
 All endpoints are listed in [backend.md](backend.md).
 

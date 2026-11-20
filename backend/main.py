@@ -1,6 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, status, Depends, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
+import os
 from pathlib import Path
 from backend import models, auth
 
@@ -20,6 +21,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 app = FastAPI(title="Clarix API", version="1.0.0")
 
+# CORS_ORIGINS: comma-separated allow-list (e.g. "https://clarix.example.com").
+# Unset keeps the dev behaviour of reflecting any origin. In the Docker deploy
+# the SPA and the API share one origin behind Caddy, so CORS is not exercised.
+_CORS_ORIGINS = {o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()}
+
+
 class CORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         origin = request.headers.get("origin", "")
@@ -27,6 +34,8 @@ class CORSMiddleware(BaseHTTPMiddleware):
             response = Response(status_code=200)
         else:
             response = await call_next(request)
+        if _CORS_ORIGINS and origin not in _CORS_ORIGINS:
+            return response
         response.headers["Access-Control-Allow-Origin"] = origin or "*"
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
