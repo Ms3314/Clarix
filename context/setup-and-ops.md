@@ -17,7 +17,11 @@
 | `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` | Storage (buckets `classroom-resources`, `profile-pictures`, created public on startup) |
 | `CHROMA_API_KEY`, `CHROMA_TENANT`, `CHROMA_DATABASE` | Chroma Cloud (tenant/database default to `"default"`) |
 | `OLLAMA_MODEL` | Chat/quiz model, default `qwen3.5:latest` (read in `rag_service.py`, `quiz_ai.py`, `qp_chunker.py`; **not listed in `example.env`**) |
-| `OPENAI_API_KEY` | Listed in `example.env` but **not read by the backend any more**; only the evals use OpenAI embeddings (root `.env`, see [evals.md](evals.md)) |
+| `LLM_PROVIDER`, `LLM_MODEL`, `LLM_BASE_URL`, `LLM_API_KEY` | Chat/quiz/question-paper LLM (`backend/llm.py`). `ollama` (default) or `openai` = any OpenAI-compatible API such as OpenRouter. `LLM_MODEL` falls back to `OLLAMA_MODEL` |
+| `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, `EMBEDDING_BASE_URL`, `EMBEDDING_API_KEY` | Embeddings: `ollama` (default, nomic) or `openai` (default `text-embedding-3-small`). Changing the model requires re-indexing Chroma collections |
+| `OPENAI_API_KEY` | Fallback key for the `openai` providers; also used by the evals (root `.env`, see [evals.md](evals.md)) |
+| `CORS_ORIGINS` | Comma-separated allow-list; unset reflects any origin (dev) |
+| `COOKIE_SECURE`, `APP_ENV` | `COOKIE_SECURE=true` marks the auth cookie `Secure`; `APP_ENV=production` makes a missing `SECRET_KEY` fatal |
 
 A local `.env` may omit most of these; check it directly rather than assuming (the one on the author's machine defined only `DATABASE_URL` and `SECRET_KEY`, so uploads and RAG would not work there).
 `frontend/.env` exists but the code only reads `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` (in the unused `lib/supabase.js`).
@@ -33,7 +37,7 @@ cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
 Run the backend **from the repo root** as `backend.main:app`: `main.py` does `from backend import models, auth` before it adds the repo root to `sys.path`, so `cd backend && uvicorn main:app` fails.
-Because the frontend's API URL is hardcoded to `http://localhost:8000`, the backend must be on that port. The SQLite file (if used) is created relative to where uvicorn is launched.
+The frontend's API URL is `VITE_API_URL` at build time, defaulting to `http://localhost:8000` (the Docker build sets `/api`). The SQLite file (if used) is created relative to where uvicorn is launched.
 
 Other commands: `npm run build`, `npm run lint` (ESLint 9).
 
@@ -46,5 +50,5 @@ All pins are `>=`; `backend/requirements.txt` lists `fastapi`, `uvicorn`, `sqlal
 
 ## Tests, CI, deployment
 
-No automated tests for the app, no CI config, no Dockerfile in the repo (the `evals/` harness is separate, see [evals.md](evals.md)). The old `TESTING_GUIDE.md` (archived) was a manual checklist for the profile-picture feature only.
+No automated tests for the app and no CI config. Deployment (Docker Compose + Caddy on one VM) is in [deploy.md](deploy.md) (the `evals/` harness is separate, see [evals.md](evals.md)). The old `TESTING_GUIDE.md` (archived) was a manual checklist for the profile-picture feature only.
 Git workflow: feature branches (`feat/ai`, `feat/local-ai`, `feat/quiz1`, ...) merged to `main` through numbered PRs by collaborator Kash4511.

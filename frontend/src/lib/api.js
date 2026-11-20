@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000',
+  // Production builds set VITE_API_URL=/api (same origin, proxied by Caddy).
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',

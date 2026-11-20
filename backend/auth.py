@@ -22,6 +22,9 @@ router = APIRouter(
 )
 
 SECRET_KEY = os.getenv("SECRET_KEY", "342e8he8eenu32329h293he293e23ec2ec98uc93h49cbf984arqy8940vryq34r")
+if os.getenv("APP_ENV") == "production" and not os.getenv("SECRET_KEY"):
+    raise RuntimeError("SECRET_KEY must be set when APP_ENV=production")
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() in ("1", "true", "yes")
 ALGORITHM = "HS256"
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
@@ -158,7 +161,7 @@ async def login_for_access_token(login_request: UserLogin,
                             detail="Could not validate user.")
     token = create_access_token(user.username, user.id, user.role, timedelta(minutes=20))
 
-    response.set_cookie(key="clarix_token", value=token, httponly=True, max_age=1200, samesite="lax")
+    response.set_cookie(key="clarix_token", value=token, httponly=True, max_age=1200, samesite="lax", secure=COOKIE_SECURE)
 
     return {
         'access_token': token,

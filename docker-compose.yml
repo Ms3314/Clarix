@@ -1,0 +1,48 @@
+# Production stack for one small VM: FastAPI backend + Caddy (SPA + HTTPS).
+# Postgres, file storage (Supabase) and vectors (Chroma Cloud) are hosted, and
+# so are the LLM and embeddings, so nothing heavy runs on the box.
+#
+#   cp deploy/.env.example .env      # then fill it in
+#   docker compose up -d --build
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: .env
+    environment:
+      APP_ENV: production
+      COOKIE_SECURE: "true"
+      CORS_ORIGINS: https://${DOMAIN}
+    volumes:
+      - backend-data:/app/data     # only used if DATABASE_URL points at SQLite here
+    restart: unless-stopped
+    mem_limit: ${BACKEND_MEM_LIMIT:-700m}
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy-data:/data           # certificates; keep this volume
+      - caddy-config:/config
+    depends_on:
+      - backend
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  backend-data:
+  caddy-data:
+  caddy-config:

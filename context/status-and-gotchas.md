@@ -40,6 +40,7 @@ Snapshot verified against the code on 2026-10-27 (branch `main`, after commit `2
 
 ## Security notes (fix before any real deployment)
 
+- The Docker deploy ([deploy.md](deploy.md)) sets `CORS_ORIGINS`, `COOKIE_SECURE=true` and `APP_ENV=production` (required `SECRET_KEY`), which closes the CORS, cookie and default-key items below for that deploy. The rest still apply.
 - `POST /auth/signup` lets anyone self-assign `role: "teacher"` (the UI offers the choice).
 - CORS middleware reflects any `Origin` with `Allow-Credentials: true` (works with the cookie, so cross-site requests can ride the session; SameSite=Lax mitigates only partially).
 - `SECRET_KEY` has a hardcoded fallback in `auth.py`; if `.env` is missing the JWT key is public in git.

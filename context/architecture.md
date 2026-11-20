@@ -4,16 +4,16 @@
 
 ```
  Browser (React SPA, :5173)
-   |  axios, baseURL http://localhost:8000 (hardcoded), JWT in localStorage + Bearer header
+   |  axios, baseURL VITE_API_URL (default http://localhost:8000; /api in the Docker build), JWT in localStorage + Bearer header
    v
  FastAPI app  (backend/main.py, :8000)
    |- routers: auth, classroom, resources(+chat), quiz, flashcard, announcements, profile
    |- SQLAlchemy ---------------> relational DB   (DATABASE_URL; SQLite or Postgres)
    |- supabase-py --------------> Supabase Storage (buckets: classroom-resources, profile-pictures; both public)
    |- rag_service.py --+--------> Chroma Cloud    (one collection per classroom)
-   |                   |--------> Ollama          (embeddings + chat LLM, localhost:11434)
+   |                   |--------> Ollama or OpenAI-compatible API (embeddings + chat LLM, via backend/llm.py)
    |                   `--------> Tesseract/poppler (OCR, local binaries)
-   `- quiz_ai.py -------------> Ollama          (MCQ generation)
+   `- quiz_ai.py -------------> same LLM (MCQ generation)
 ```
 
 No background workers or queues: PDF indexing, LLM calls and quiz generation all run **synchronously inside the request**.

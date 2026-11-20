@@ -1,0 +1,14 @@
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.env
+**/.env.*
+!deploy/.env.example
+venv
+.venv
+.git
+evals
+context
+**/*.db
+frontend/dist
+.DS_Store

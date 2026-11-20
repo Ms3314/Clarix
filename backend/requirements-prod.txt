@@ -1,0 +1,25 @@
+# Production install for the Docker image: the app's real imports only.
+# Leaves out sentence-transformers (pulls in torch, ~2 GB) and other
+# eval-only packages from requirements.txt. Ollama support stays so the
+# same image can still talk to an Ollama server if LLM_PROVIDER=ollama.
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.9
+python-jose[cryptography]>=3.3.0
+bcrypt>=4.0.0
+python-multipart>=0.0.9
+pydantic[email]>=2.0.0
+python-dotenv>=1.0.0
+httpx>=0.27.0
+supabase>=2.0.0
+langchain-core>=0.3.0
+langchain-chroma>=0.1.0
+langchain-openai>=0.2.0
+langchain-ollama>=0.2.0
+langgraph>=0.2.0
+chromadb>=0.4.0
+pymupdf>=1.23.0
+pdf2image>=1.16.0
+pytesseract>=0.3.10
+Pillow>=10.0.0
